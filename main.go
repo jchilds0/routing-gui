@@ -26,33 +26,54 @@ func main() {
 
 var mouseX, mouseY float64
 var selectRouter *router.Router
-var routers = make([]*router.Router, 0, 100)
+var routers *router.RouterTree
+var pipes *router.PipeTree
 
 func buildWindow(win *gtk.Window) {
-	box, _ := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
+	box, _ := gtk.PanedNew(gtk.ORIENTATION_HORIZONTAL)
 	win.Add(box)
 
+	routers = router.NewRouterTree()
+	pipes = router.NewPipeTree(routers)
+
+	left, _ := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
+	box.Pack1(left, false, false)
+
+	label, _ := gtk.LabelNew("Routers")
+	left.PackStart(label, false, false, 0)
+
+	nb, _ := gtk.NotebookNew()
+	left.PackStart(nb, true, true, 0)
+
+	labelRouter, _ := gtk.LabelNewWithMnemonic("Routers")
+	nb.AppendPage(routers.List, labelRouter)
+
+	labelPipes, _ := gtk.LabelNewWithMnemonic("Connections")
+	nb.AppendPage(pipes.Box, labelPipes)
+
+	right, _ := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
+	box.Pack2(right, true, true)
+
 	grid, _ := gtk.GridNew()
-	box.PackStart(grid, false, false, 0)
+	right.PackStart(grid, false, false, 0)
 
 	addRouter, _ := gtk.ButtonNewWithLabel("Add Router")
 	grid.Attach(addRouter, 10, 10, 10, 10)
 
 	addRouter.Connect("clicked", func() {
 		newRouter := router.NewRouter()
-		routers = append(routers, newRouter)
+		routers.AddRouter(newRouter)
 	})
 
 	draw, _ := gtk.DrawingAreaNew()
-	box.PackStart(draw, true, true, 0)
+	right.PackStart(draw, true, true, 0)
 
 	draw.AddEvents(gdk.BUTTON1_MASK)
 	draw.AddEvents(int(gdk.POINTER_MOTION_MASK))
 
 	draw.Connect("draw", func(d *gtk.DrawingArea, cr *cairo.Context) {
-		for _, r := range routers {
-			r.Draw(cr)
-		}
+		routers.Draw(cr)
+		pipes.Draw(cr)
 	})
 
 	draw.Connect("motion-notify-event", drawLoop)
@@ -77,7 +98,11 @@ func drawLoop(d *gtk.DrawingArea, event *gdk.Event) {
 		return
 	}
 
-	for _, r := range routers {
+	for _, r := range routers.Routers {
+		if r == nil {
+			continue
+		}
+
 		if r.Contains(b.X(), b.Y()) {
 			selectRouter = r
 		}
