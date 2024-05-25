@@ -186,28 +186,13 @@ func (pTree *PipeTree) updateRow(iter *gtk.TreeIter) (err error) {
 	return
 }
 
-func (rTree *RouterTree) clipRouters(cr *cairo.Context) {
-	cr.SetFillRule(cairo.FILL_RULE_EVEN_ODD)
+func unitVector(x, y float64) (float64, float64) {
+	norm := math.Sqrt(math.Pow(x, 2) + math.Pow(y, 2))
 
-	for _, r := range rTree.Routers {
-		if r == nil {
-			continue
-		}
-
-		x := r.X + r.W/2
-		y := r.Y + r.H/2
-
-		cr.Arc(x, y, 30, 0, 2*math.Pi)
-		cr.Fill()
-	}
+	return x / norm, y / norm
 }
 
 func (pTree *PipeTree) Draw(cr *cairo.Context) {
-	cr.SetSourceRGB(0, 1, 1)
-
-	pTree.Routers.clipRouters(cr)
-	cr.SetFillRule(cairo.FILL_RULE_WINDING)
-
 	for conn := range pTree.Router1 {
 		r1Id := pTree.Router1[conn]
 		r2Id := pTree.Router2[conn]
@@ -221,12 +206,31 @@ func (pTree *PipeTree) Draw(cr *cairo.Context) {
 		x2 := r2.X + r2.W/2
 		y2 := r2.Y + r2.H/2
 
-		cr.MoveTo(x1, y1)
-		cr.LineTo(x2, y2)
-		cr.SetLineWidth(5)
+		vx, vy := unitVector(x2-x1, y2-y1)
+
+		radius := float64(75)
+
+		startX := x1 + radius*vx
+		startY := y1 + radius*vy
+		endX := x2 - radius*vx
+		endY := y2 - radius*vy
+		lineWidth := float64(8)
+
+		cr.SetSourceRGB(0, 0, 0)
+		cr.MoveTo(startX, startY)
+		cr.LineTo(endX, endY)
+		cr.SetLineWidth(lineWidth)
 		cr.Stroke()
+
+		cr.Arc(startX, startY, lineWidth/2, 0, 2*math.Pi)
+		cr.Arc(endX, endY, lineWidth/2, 0, 2*math.Pi)
+		cr.Fill()
+
+		cr.SetSourceRGB(0.5, 0.5, 0.5)
+		cr.MoveTo(startX, startY)
+		cr.LineTo(endX, endY)
+		cr.SetLineWidth(lineWidth / 4)
+		cr.Stroke()
+		cr.Fill()
 	}
-
-	cr.Fill()
-
 }
