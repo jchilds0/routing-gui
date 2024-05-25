@@ -77,6 +77,7 @@ func buildWindow(win *gtk.Window) {
 	})
 
 	draw.Connect("motion-notify-event", drawLoop)
+	draw.Connect("button-press-event", pressLoop)
 }
 
 func drawLoop(d *gtk.DrawingArea, event *gdk.Event) {
@@ -86,7 +87,7 @@ func drawLoop(d *gtk.DrawingArea, event *gdk.Event) {
 		mouseY = b.Y()
 	}()
 
-	if b.State() != uint(gdk.BUTTON_PRESS_MASK) {
+	if b.State()&uint(gdk.BUTTON_PRESS_MASK) == 0 {
 		selectRouter = nil
 		return
 	}
@@ -107,4 +108,18 @@ func drawLoop(d *gtk.DrawingArea, event *gdk.Event) {
 			selectRouter = r
 		}
 	}
+}
+
+func pressLoop(d *gtk.DrawingArea, event *gdk.Event) {
+	b := gdk.EventButtonNewFromEvent(event)
+
+	for _, r := range routers.Routers {
+		if r == nil {
+			continue
+		}
+
+		r.Selected = r.Contains(b.X(), b.Y()) && !r.Selected
+	}
+
+	d.QueueDraw()
 }

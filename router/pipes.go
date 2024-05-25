@@ -60,7 +60,7 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 		label2.SetWidthChars(10)
 		buttonBox.PackStart(label2, false, false, 0)
 
-		router2, _ := gtk.ComboBoxNewWithModel(pTree.Routers.Model.ToTreeModel())
+		router2, _ := gtk.ComboBoxNewWithModel(pTree.Routers.Model)
 		router2.SetActive(ROUTER_NAME)
 		router2.CellLayout.PackStart(cell, true)
 		router2.CellLayout.AddAttribute(cell, "text", ROUTER_NAME)

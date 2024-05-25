@@ -1,6 +1,7 @@
 package router
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gotk3/gotk3/cairo"
@@ -31,12 +32,57 @@ func NewRouterTree() *RouterTree {
 	rTree.List, _ = gtk.TreeViewNew()
 	rTree.List.SetModel(rTree.Model.ToTreeModel())
 
-	cell, _ := gtk.CellRendererTextNew()
+	name, _ := gtk.CellRendererTextNew()
+	name.SetProperty("editable", true)
+	name.Connect("edited",
+		func(cell *gtk.CellRendererText, path, text string) {
+			iter, err := rTree.Model.GetIterFromString(path)
+			if err != nil {
+				log.Printf("Error editing name: %s", err)
+				return
+			}
 
-	col, _ := gtk.TreeViewColumnNewWithAttribute("Name", cell, "text", ROUTER_NAME)
+			id, err := ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
+			if err != nil {
+				log.Printf("Error getting id: %s", err)
+				return
+			}
+
+			r := rTree.Routers[id]
+			if r != nil {
+				r.Name = text
+			}
+
+			rTree.Model.SetValue(iter, ROUTER_NAME, text)
+		})
+
+	col, _ := gtk.TreeViewColumnNewWithAttribute("Name", name, "text", ROUTER_NAME)
 	rTree.List.AppendColumn(col)
 
-	col, _ = gtk.TreeViewColumnNewWithAttribute("IP Address", cell, "text", ROUTER_IP)
+	ip, _ := gtk.CellRendererTextNew()
+	ip.SetProperty("editable", true)
+	ip.Connect("edited",
+		func(cell *gtk.CellRendererText, path, text string) {
+			iter, err := rTree.Model.GetIterFromString(path)
+			if err != nil {
+				log.Printf("Error editing name: %s", err)
+				return
+			}
+
+			id, err := ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
+			if err != nil {
+				log.Printf("Error getting id: %s", err)
+				return
+			}
+
+			r := rTree.Routers[id]
+			if r != nil {
+				r.IP = text
+			}
+
+			rTree.Model.SetValue(iter, ROUTER_IP, text)
+		})
+	col, _ = gtk.TreeViewColumnNewWithAttribute("IP Address", ip, "text", ROUTER_IP)
 	rTree.List.AppendColumn(col)
 
 	return rTree
