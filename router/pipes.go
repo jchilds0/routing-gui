@@ -3,6 +3,7 @@ package router
 import (
 	"log"
 	"math"
+	"strconv"
 
 	"github.com/gotk3/gotk3/cairo"
 	"github.com/gotk3/gotk3/glib"
@@ -22,6 +23,7 @@ const (
 type PipeTree struct {
 	Router1 []int
 	Router2 []int
+	Weight  []int
 	Routers *RouterTree
 	Model   *gtk.ListStore
 	List    *gtk.TreeView
@@ -35,6 +37,7 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 
 	pTree.Router1 = make([]int, 0, 100)
 	pTree.Router2 = make([]int, 0, 100)
+	pTree.Weight = make([]int, 0, 100)
 
 	pTree.Box, _ = gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
 
@@ -158,6 +161,7 @@ func (pTree *PipeTree) addConnection(r1, r2 *gtk.TreeIter) (iter *gtk.TreeIter, 
 	pTree.Model.SetValue(iter, ROUTER2_ID, routerID)
 	pTree.Router2 = append(pTree.Router2, routerID)
 
+	pTree.Weight = append(pTree.Weight, 0)
 	return
 }
 
@@ -232,5 +236,17 @@ func (pTree *PipeTree) Draw(cr *cairo.Context) {
 		cr.SetLineWidth(lineWidth / 4)
 		cr.Stroke()
 		cr.Fill()
+
+		cr.SetSourceRGB(0, 0, 0)
+		cr.SelectFontFace("Georgia", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+		cr.SetFontSize(16)
+
+		centerX := (endX + startX) / 2
+		centerY := (endY + startY) / 2
+
+		w := strconv.Itoa(pTree.Weight[conn])
+		te := cr.TextExtents(w)
+		cr.MoveTo(centerX-te.Width/2, centerY-20)
+		cr.ShowText(w)
 	}
 }
