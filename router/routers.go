@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 
@@ -21,9 +22,12 @@ type RouterTree struct {
 	MaxRouterID int
 	Model       *gtk.ListStore
 	List        *gtk.TreeView
+	RouterInfo  *gtk.Box
+	routerList  *gtk.TreeView
+	routerLabel *gtk.HeaderBar
 }
 
-func NewRouterTree() *RouterTree {
+func NewRouterTree(getRouterList func(int) *gtk.ListStore) *RouterTree {
 	rTree := &RouterTree{MaxRouterID: 1}
 	rTree.Routers = make(map[int]*RouterIcon, 100)
 	rTree.RouterIter = make(map[int]*gtk.TreeIter, 100)
@@ -31,6 +35,7 @@ func NewRouterTree() *RouterTree {
 	rTree.Model, _ = gtk.ListStoreNew(glib.TYPE_INT, glib.TYPE_STRING, glib.TYPE_STRING)
 	rTree.List, _ = gtk.TreeViewNew()
 	rTree.List.SetModel(rTree.Model.ToTreeModel())
+	rTree.List.SetActivateOnSingleClick(true)
 
 	name, _ := gtk.CellRendererTextNew()
 	name.SetProperty("editable", true)
@@ -84,6 +89,49 @@ func NewRouterTree() *RouterTree {
 		})
 	col, _ = gtk.TreeViewColumnNewWithAttribute("IP Address", ip, "text", ROUTER_IP)
 	rTree.List.AppendColumn(col)
+
+	rTree.List.Connect("row-activated",
+		func(tree *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
+			iter, err := rTree.Model.GetIter(path)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+
+			model := rTree.Model.ToTreeModel()
+			routerID, err := ModelGetValue[int](model, iter, ROUTER_ID)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+
+			name, err := ModelGetValue[string](model, iter, ROUTER_NAME)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+
+			routerList := getRouterList(routerID)
+			rTree.routerList.SetModel(routerList)
+			rTree.routerLabel.SetTitle(fmt.Sprintf("Router %s State", name))
+		})
+
+	rTree.RouterInfo, _ = gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
+
+	rTree.routerLabel, _ = gtk.HeaderBarNew()
+	rTree.RouterInfo.PackStart(rTree.routerLabel, false, false, 0)
+
+	rTree.routerList, _ = gtk.TreeViewNew()
+	rTree.RouterInfo.PackStart(rTree.routerList, false, false, 0)
+
+	col, _ = gtk.TreeViewColumnNewWithAttribute("Name", name, "text", INFO_NAME)
+	rTree.routerList.AppendColumn(col)
+
+	col, _ = gtk.TreeViewColumnNewWithAttribute("IP Address", name, "text", INFO_IP)
+	rTree.routerList.AppendColumn(col)
+
+	col, _ = gtk.TreeViewColumnNewWithAttribute("Distance", name, "text", INFO_DIST)
+	rTree.routerList.AppendColumn(col)
 
 	return rTree
 }

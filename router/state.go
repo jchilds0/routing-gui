@@ -4,9 +4,18 @@ import (
 	"log"
 	"maps"
 	"slices"
+
+	"github.com/gotk3/gotk3/glib"
+	"github.com/gotk3/gotk3/gtk"
 )
 
 const logState = true
+
+const (
+	INFO_NAME = iota
+	INFO_IP
+	INFO_DIST
+)
 
 type RouterState struct {
 	selected     []map[int]bool
@@ -14,6 +23,7 @@ type RouterState struct {
 	currentID    []int
 	CurrentState int
 	destID       int
+	RouterInfo   map[int]*gtk.ListStore
 }
 
 func NewRouterState() *RouterState {
@@ -22,6 +32,7 @@ func NewRouterState() *RouterState {
 	rs.selected = make([]map[int]bool, 0, 30)
 	rs.currentID = make([]int, 0, 30)
 	rs.routers = make([]map[int]Router, 0, 30)
+	rs.RouterInfo = make(map[int]*gtk.ListStore)
 
 	return rs
 }
@@ -85,13 +96,7 @@ func (rs *RouterState) NextState(pTree *PipeTree) {
 	selected[nextHop] = true
 	rs.selected = append(rs.selected, selected)
 
-	routers := make(map[int]Router, len(pTree.Routers.Routers))
-
-	for id, r := range pTree.Routers.Routers {
-		routers[id] = r.Router.Copy()
-	}
-
-	rs.routers = append(rs.routers, routers)
+	rs.StoreRouterState(pTree.Routers)
 	rs.CurrentState++
 }
 
@@ -115,6 +120,41 @@ func (rs *RouterState) IsPrevState() bool {
 
 func (rs *RouterState) IsNextState() bool {
 	return rs.currentID[rs.CurrentState] != rs.destID
+}
+
+func (rs *RouterState) UpdateRouterInfo(rTree *RouterTree) {
+	model := rTree.Model.ToTreeModel()
+
+	for id, r := range rTree.Routers {
+		if rs.RouterInfo[id] == nil {
+			rs.RouterInfo[id], _ = gtk.ListStoreNew(glib.TYPE_STRING, glib.TYPE_STRING, glib.TYPE_INT)
+		}
+
+		routerModel := rs.RouterInfo[id]
+
+		routerModel.Clear()
+		info := r.Router.Info()
+
+		for adjID, dist := range info {
+			iter := rTree.RouterIter[adjID]
+			adjName, err := ModelGetValue[string](model, iter, ROUTER_NAME)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+
+			adjIP, err := ModelGetValue[string](model, iter, ROUTER_IP)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+
+			row := routerModel.Append()
+			routerModel.SetValue(row, INFO_NAME, adjName)
+			routerModel.SetValue(row, INFO_IP, adjIP)
+			routerModel.SetValue(row, INFO_DIST, dist)
+		}
+	}
 }
 
 func (rs *RouterState) Broadcast(pTree *PipeTree) {
@@ -141,4 +181,6 @@ func (rs *RouterState) Broadcast(pTree *PipeTree) {
 			router2.Recieve(id1, msg)
 		}
 	}
+
+	rs.UpdateRouterInfo(pTree.Routers)
 }

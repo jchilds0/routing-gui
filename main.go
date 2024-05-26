@@ -35,7 +35,9 @@ func buildWindow(win *gtk.Window) {
 	box, _ := gtk.PanedNew(gtk.ORIENTATION_HORIZONTAL)
 	win.Add(box)
 
-	routers = router.NewRouterTree()
+	routers = router.NewRouterTree(func(routerID int) *gtk.ListStore {
+		return state.RouterInfo[routerID]
+	})
 	pipes = router.NewPipeTree(routers)
 	state = router.NewRouterState()
 
@@ -55,6 +57,8 @@ func buildWindow(win *gtk.Window) {
 
 		labelPipes, _ := gtk.LabelNewWithMnemonic("Connections")
 		nb.AppendPage(pipes.Box, labelPipes)
+
+		left.PackEnd(routers.RouterInfo, false, false, 0)
 	}
 
 	{
