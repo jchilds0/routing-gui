@@ -74,9 +74,16 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 		buttonBox.PackStart(addPipe, false, false, 15)
 
 		addPipe.Connect("clicked", func() {
+			model := pTree.Routers.Model.ToTreeModel()
+
 			iter1, err := router1.GetActiveIter()
 			if err != nil {
 				log.Printf("Error getting router 1: %s", err)
+				return
+			}
+
+			router1ID, err := ModelGetValue[int](model, iter1, ROUTER_ID)
+			if err != nil {
 				return
 			}
 
@@ -86,15 +93,14 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 				return
 			}
 
-			iter, err := pTree.addConnection(iter1, iter2)
+			router2ID, err := ModelGetValue[int](model, iter2, ROUTER_ID)
 			if err != nil {
-				log.Printf("Error adding connection: %s", err)
 				return
 			}
 
-			err = pTree.updateRow(iter)
+			err = pTree.AddConnection(router1ID, router2ID)
 			if err != nil {
-				log.Printf("Error updating row: %s", err)
+				log.Printf("Error adding connection: %s", err)
 				return
 			}
 		})
@@ -141,27 +147,18 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 	return pTree
 }
 
-func (pTree *PipeTree) addConnection(r1, r2 *gtk.TreeIter) (iter *gtk.TreeIter, err error) {
-	model := pTree.Routers.Model.ToTreeModel()
-	iter = pTree.Model.Append()
+func (pTree *PipeTree) AddConnection(r1, r2 int) (err error) {
+	iter := pTree.Model.Append()
 
-	routerID, err := ModelGetValue[int](model, r1, ROUTER_ID)
-	if err != nil {
-		return
-	}
+	pTree.Model.SetValue(iter, ROUTER1_ID, r1)
+	pTree.Router1 = append(pTree.Router1, r1)
 
-	pTree.Model.SetValue(iter, ROUTER1_ID, routerID)
-	pTree.Router1 = append(pTree.Router1, routerID)
-
-	routerID, err = ModelGetValue[int](model, r2, ROUTER_ID)
-	if err != nil {
-		return
-	}
-
-	pTree.Model.SetValue(iter, ROUTER2_ID, routerID)
-	pTree.Router2 = append(pTree.Router2, routerID)
+	pTree.Model.SetValue(iter, ROUTER2_ID, r2)
+	pTree.Router2 = append(pTree.Router2, r2)
 
 	pTree.Weight = append(pTree.Weight, 0)
+
+	err = pTree.updateRow(iter)
 	return
 }
 

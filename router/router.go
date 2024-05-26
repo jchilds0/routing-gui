@@ -7,7 +7,18 @@ import (
 	"github.com/gotk3/gotk3/cairo"
 )
 
-type Router struct {
+type Router interface {
+	RoutePacket(int) (int, error)
+	Broadcast() map[int]int
+	Recieve(int, map[int]int)
+	Info() map[int]int
+	AddRouter(int, int)
+	RemoveRouter(int)
+	Copy() Router
+}
+
+type RouterIcon struct {
+	Router   Router
 	id       int
 	Name     string
 	IP       string
@@ -18,13 +29,13 @@ type Router struct {
 	Selected bool
 }
 
-func NewRouter() *Router {
-	r := &Router{X: 10, Y: 10, W: 100, H: 100}
+func NewRouter(r Router) *RouterIcon {
+	ri := &RouterIcon{Router: r, X: 10, Y: 10, W: 100, H: 100}
 
-	return r
+	return ri
 }
 
-func (r *Router) Draw(cr *cairo.Context) {
+func (r *RouterIcon) Draw(cr *cairo.Context) {
 	if r.Selected {
 		centerX := r.X + r.W/2
 		centerY := r.Y + r.H/2
@@ -76,11 +87,11 @@ func (r *Router) Draw(cr *cairo.Context) {
 	cr.ShowText(r.IP)
 }
 
-func (r *Router) Contains(x float64, y float64) bool {
+func (r *RouterIcon) Contains(x float64, y float64) bool {
 	return (r.X < x && x < r.X+r.W) && (r.Y < y && y < r.Y+r.H)
 }
 
-func (r *Router) UpdatePos(delX float64, delY float64) {
+func (r *RouterIcon) UpdatePos(delX float64, delY float64) {
 	r.X += delX
 	r.Y += delY
 }

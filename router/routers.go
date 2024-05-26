@@ -16,16 +16,16 @@ const (
 )
 
 type RouterTree struct {
-	Routers     map[int]*Router
+	Routers     map[int]*RouterIcon
 	RouterIter  map[int]*gtk.TreeIter
-	maxRouterID int
+	MaxRouterID int
 	Model       *gtk.ListStore
 	List        *gtk.TreeView
 }
 
 func NewRouterTree() *RouterTree {
-	rTree := &RouterTree{maxRouterID: 0}
-	rTree.Routers = make(map[int]*Router, 100)
+	rTree := &RouterTree{MaxRouterID: 1}
+	rTree.Routers = make(map[int]*RouterIcon, 100)
 	rTree.RouterIter = make(map[int]*gtk.TreeIter, 100)
 
 	rTree.Model, _ = gtk.ListStoreNew(glib.TYPE_INT, glib.TYPE_STRING, glib.TYPE_STRING)
@@ -88,8 +88,8 @@ func NewRouterTree() *RouterTree {
 	return rTree
 }
 
-func (rTree *RouterTree) AddRouter(r *Router) {
-	r.id = rTree.maxRouterID
+func (rTree *RouterTree) AddRouter(r *RouterIcon) {
+	r.id = rTree.MaxRouterID
 	r.Name = "Router " + strconv.Itoa(r.id)
 	r.IP = "127.0.0.1"
 
@@ -100,7 +100,7 @@ func (rTree *RouterTree) AddRouter(r *Router) {
 
 	rTree.Routers[r.id] = r
 	rTree.RouterIter[r.id] = iter
-	rTree.maxRouterID++
+	rTree.MaxRouterID++
 }
 
 func (rTree *RouterTree) GetValue(routerID, col int) (string, error) {
