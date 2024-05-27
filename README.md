@@ -1,6 +1,7 @@
 # Routing Algorithm Gui
 
 Interactive GUI for exploring network layer routing algorithms.
+Built using Golang and [Gotk][gotk] for ui elements.
 
 ![Example](data/example.png)
 
@@ -14,6 +15,7 @@ Interactive GUI for exploring network layer routing algorithms.
 
 ## Credits
 
-Server Icon image from [UXWing](uxwing)
+Server Icon image from [UXWing][uxwing]
 
 [uxwing]: https://uxwing.com
+[gotk]: https://github.com/gotk3/gotk3
