@@ -11,3 +11,9 @@ Interactive GUI for exploring network layer routing algorithms.
 - Fine grained control over routing process
 - Interact with the network during packet routing, adding or deleting nodes
 - Link State Routing (coming soon TM)
+
+## Credits
+
+Server Icon image from [UXWing](uxwing)
+
+[uxwing]: https://uxwing.com
