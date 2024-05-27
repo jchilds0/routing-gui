@@ -46,7 +46,8 @@ func buildWindow(win *gtk.Window) {
 		left, _ := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
 		box.Pack1(left, false, false)
 
-		label, _ := gtk.LabelNew("Routers")
+		label, _ := gtk.HeaderBarNew()
+		label.SetTitle("Routers")
 		left.PackStart(label, false, false, 0)
 
 		nb, _ := gtk.NotebookNew()
@@ -68,54 +69,97 @@ func buildWindow(win *gtk.Window) {
 		right, _ := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
 		box.Pack2(right, true, true)
 
-		buttons, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
-		right.PackStart(buttons, false, false, padding)
+		header, _ := gtk.HeaderBarNew()
+		header.SetTitle("Network Layout")
+		right.PackStart(header, false, false, 0)
+
+		routerButtons, _ := gtk.FlowBoxNew()
+		routerButtons.SetSelectionMode(gtk.SELECTION_NONE)
+		routerButtons.SetColumnSpacing(10)
+		routerButtons.SetRowSpacing(10)
+
+		right.PackStart(routerButtons, false, false, padding)
 
 		addRouterButton, _ := gtk.ButtonNewWithLabel("Add Router")
-		buttons.PackStart(addRouterButton, false, false, padding)
+		routerButtons.Add(addRouterButton)
 
 		label, _ := gtk.LabelNew("Send Message ")
 		label.SetWidthChars(10)
-		buttons.PackStart(label, false, false, padding)
+		routerButtons.Add(label)
 
 		cell, _ := gtk.CellRendererTextNew()
 
+		box1, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
+		routerButtons.Add(box1)
+
 		source, _ := gtk.LabelNew("Source")
-		source.SetWidthChars(10)
-		buttons.PackStart(source, false, false, padding)
+		source.SetWidthChars(15)
+		box1.PackStart(source, false, false, 0)
 
 		sourceSelect, _ := gtk.ComboBoxNewWithModel(routers.Model)
 		sourceSelect.SetActive(router.ROUTER_NAME)
 		sourceSelect.CellLayout.PackStart(cell, true)
 		sourceSelect.CellLayout.AddAttribute(cell, "text", router.ROUTER_NAME)
+		box1.PackStart(sourceSelect, true, true, 0)
 
-		buttons.PackStart(sourceSelect, false, false, padding)
+		box2, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
+		routerButtons.Add(box2)
 
 		dest, _ := gtk.LabelNew("Destination")
-		dest.SetWidthChars(10)
-		buttons.PackStart(dest, false, false, padding)
+		dest.SetWidthChars(15)
+		box2.PackStart(dest, false, false, 0)
 
 		destSelect, _ := gtk.ComboBoxNewWithModel(routers.Model)
 		destSelect.SetActive(router.ROUTER_NAME)
 		destSelect.CellLayout.PackStart(cell, true)
 		destSelect.CellLayout.AddAttribute(cell, "text", router.ROUTER_NAME)
-
-		buttons.PackStart(destSelect, false, false, padding)
+		box2.PackStart(destSelect, true, true, 0)
 
 		send, _ := gtk.ButtonNewWithLabel("Send")
-		buttons.PackStart(send, false, false, padding)
+		routerButtons.Add(send)
+
+		split, _ := gtk.SeparatorNew(gtk.ORIENTATION_HORIZONTAL)
+		right.PackStart(split, false, false, 0)
+
+		stateButtons, _ := gtk.FlowBoxNew()
+		stateButtons.SetSelectionMode(gtk.SELECTION_NONE)
+		stateButtons.SetColumnSpacing(10)
+		stateButtons.SetRowSpacing(10)
+
+		right.PackStart(stateButtons, false, false, padding)
 
 		prevState, _ := gtk.ButtonNewWithLabel("Prev State")
 		prevState.SetSensitive(false)
-		buttons.PackStart(prevState, false, false, padding)
+		stateButtons.Add(prevState)
 
 		nextState, _ := gtk.ButtonNewWithLabel("Next State")
 		nextState.SetSensitive(false)
-		buttons.PackStart(nextState, false, false, padding)
+		stateButtons.Add(nextState)
 
-		broadcast, _ := gtk.ButtonNewWithLabel("Broadcast")
+		broadcast, _ := gtk.ButtonNewWithLabel("Broadcast All")
 		broadcast.SetSensitive(false)
-		buttons.PackStart(broadcast, false, false, padding)
+		stateButtons.Add(broadcast)
+
+		box3, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
+		stateButtons.Add(box3)
+
+		broadcastLabel, _ := gtk.LabelNew("Broadcast Router:")
+		broadcastLabel.SetWidthChars(15)
+		box3.PackStart(broadcastLabel, false, false, 0)
+
+		broadcastRouterSelect, _ := gtk.ComboBoxNewWithModel(routers.Model)
+		broadcastRouterSelect.SetActive(router.ROUTER_NAME)
+		broadcastRouterSelect.SetSensitive(false)
+		broadcastRouterSelect.CellLayout.PackStart(cell, true)
+		broadcastRouterSelect.CellLayout.AddAttribute(cell, "text", router.ROUTER_NAME)
+		box3.PackStart(broadcastRouterSelect, false, false, padding)
+
+		broadcastRouter, _ := gtk.ButtonNewWithLabel("Broadcast Router")
+		broadcastRouter.SetSensitive(false)
+		box3.PackStart(broadcastRouter, false, false, padding)
+
+		split, _ = gtk.SeparatorNew(gtk.ORIENTATION_HORIZONTAL)
+		right.PackStart(split, false, false, 0)
 
 		draw, _ := gtk.DrawingAreaNew()
 		right.PackStart(draw, true, true, 0)
@@ -128,13 +172,14 @@ func buildWindow(win *gtk.Window) {
 		})
 
 		send.Connect("clicked", func() {
+			model := routers.Model.ToTreeModel()
 			sourceIter, err := sourceSelect.GetActiveIter()
 			if err != nil {
 				log.Print(err)
 				return
 			}
 
-			sourceID, err := router.ModelGetValue[int](routers.Model.ToTreeModel(), sourceIter, router.ROUTER_ID)
+			sourceID, err := router.ModelGetValue[int](model, sourceIter, router.ROUTER_ID)
 			if err != nil {
 				log.Print(err)
 				return
@@ -146,7 +191,7 @@ func buildWindow(win *gtk.Window) {
 				return
 			}
 
-			destID, err := router.ModelGetValue[int](routers.Model.ToTreeModel(), destIter, router.ROUTER_ID)
+			destID, err := router.ModelGetValue[int](model, destIter, router.ROUTER_ID)
 			if err != nil {
 				log.Print(err)
 				return
@@ -155,8 +200,11 @@ func buildWindow(win *gtk.Window) {
 			state.Start(sourceID, destID, routers)
 			state.LoadState(routers)
 			draw.QueueDraw()
+
 			nextState.SetSensitive(true)
 			broadcast.SetSensitive(true)
+			broadcastRouter.SetSensitive(true)
+			broadcastRouterSelect.SetSensitive(true)
 
 			sourceSelect.SetSensitive(false)
 			destSelect.SetSensitive(false)

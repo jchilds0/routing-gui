@@ -43,12 +43,21 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 
 	{
 		// Buttons
-		buttonBox, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
+		buttonBox, _ := gtk.FlowBoxNew()
+		buttonBox.SetSelectionMode(gtk.SELECTION_NONE)
+		buttonBox.SetColumnSpacing(10)
+		buttonBox.SetRowSpacing(10)
+
 		pTree.Box.PackStart(buttonBox, false, false, 15)
 
-		label1, _ := gtk.LabelNewWithMnemonic("Router 1: ")
+		/* Router 1 */
+
+		box1, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
+		buttonBox.Add(box1)
+
+		label1, _ := gtk.LabelNewWithMnemonic("Router 1:")
 		label1.SetWidthChars(10)
-		buttonBox.PackStart(label1, false, false, 0)
+		box1.PackStart(label1, false, false, 0)
 
 		cell, _ := gtk.CellRendererTextNew()
 
@@ -56,22 +65,25 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 		router1.SetActive(ROUTER_NAME)
 		router1.CellLayout.PackStart(cell, true)
 		router1.CellLayout.AddAttribute(cell, "text", ROUTER_NAME)
+		box1.PackStart(router1, false, false, 0)
 
-		buttonBox.PackStart(router1, false, false, 0)
+		/* Router 2 */
+
+		box2, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
+		buttonBox.Add(box2)
 
 		label2, _ := gtk.LabelNewWithMnemonic("Router 2: ")
 		label2.SetWidthChars(10)
-		buttonBox.PackStart(label2, false, false, 0)
+		box2.PackStart(label2, false, false, 0)
 
 		router2, _ := gtk.ComboBoxNewWithModel(pTree.Routers.Model)
 		router2.SetActive(ROUTER_NAME)
 		router2.CellLayout.PackStart(cell, true)
 		router2.CellLayout.AddAttribute(cell, "text", ROUTER_NAME)
-
-		buttonBox.PackStart(router2, false, false, 0)
+		box2.PackStart(router2, false, false, 0)
 
 		addPipe, _ := gtk.ButtonNewWithLabel("Add Connection")
-		buttonBox.PackStart(addPipe, false, false, 15)
+		buttonBox.Add(addPipe)
 
 		addPipe.Connect("clicked", func() {
 			model := pTree.Routers.Model.ToTreeModel()
@@ -106,7 +118,7 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 		})
 
 		removePipe, _ := gtk.ButtonNewWithLabel("Remove Connection")
-		buttonBox.PackStart(removePipe, false, false, 15)
+		buttonBox.Add(removePipe)
 	}
 
 	{
