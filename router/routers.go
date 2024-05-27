@@ -3,6 +3,7 @@ package router
 import (
 	"fmt"
 	"log"
+	"routing-gui/gtk_utils"
 	"strconv"
 
 	"github.com/gotk3/gotk3/cairo"
@@ -47,7 +48,7 @@ func NewRouterTree(getRouterList func(int) *gtk.ListStore) *RouterTree {
 				return
 			}
 
-			id, err := ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
+			id, err := gtk_utils.ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
 			if err != nil {
 				log.Printf("Error getting id: %s", err)
 				return
@@ -74,7 +75,7 @@ func NewRouterTree(getRouterList func(int) *gtk.ListStore) *RouterTree {
 				return
 			}
 
-			id, err := ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
+			id, err := gtk_utils.ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
 			if err != nil {
 				log.Printf("Error getting id: %s", err)
 				return
@@ -99,13 +100,13 @@ func NewRouterTree(getRouterList func(int) *gtk.ListStore) *RouterTree {
 			}
 
 			model := rTree.Model.ToTreeModel()
-			routerID, err := ModelGetValue[int](model, iter, ROUTER_ID)
+			routerID, err := gtk_utils.ModelGetValue[int](model, iter, ROUTER_ID)
 			if err != nil {
 				log.Print(err)
 				return
 			}
 
-			name, err := ModelGetValue[string](model, iter, ROUTER_NAME)
+			name, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
 			if err != nil {
 				log.Print(err)
 				return
@@ -155,7 +156,7 @@ func (rTree *RouterTree) GetValue(routerID, col int) (string, error) {
 	iter := rTree.RouterIter[routerID]
 	model := rTree.Model.ToTreeModel()
 
-	return ModelGetValue[string](model, iter, col)
+	return gtk_utils.ModelGetValue[string](model, iter, col)
 }
 
 func (rTree *RouterTree) Draw(cr *cairo.Context) {

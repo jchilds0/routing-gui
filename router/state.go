@@ -1,7 +1,9 @@
 package router
 
 import (
+	"fmt"
 	"log"
+	"routing-gui/gtk_utils"
 	"slices"
 
 	"github.com/gotk3/gotk3/glib"
@@ -26,8 +28,8 @@ type State struct {
 	routers       map[int]Router
 }
 
-func NewState(routerID int) *State {
-	s := &State{currentRouter: routerID}
+func NewState() *State {
+	s := &State{}
 
 	s.selected = make(map[int]bool, 30)
 	s.routers = make(map[int]Router, 30)
@@ -35,10 +37,33 @@ func NewState(routerID int) *State {
 	return s
 }
 
-func (s *State) StoreRouterState(rTree *RouterTree) {
+func NewStateFromTree(rTree *RouterTree) *State {
+	s := NewState()
+
 	for id, r := range rTree.Routers {
 		s.routers[id] = r.Router.Copy()
 	}
+
+	return s
+}
+
+func NewStateFromState(s *State) *State {
+	newState := NewState()
+	newState.currentRouter = s.currentRouter
+
+	for id, r := range s.routers {
+		if r == nil {
+			continue
+		}
+
+		newState.routers[id] = r.Copy()
+	}
+
+	for id := range s.selected {
+		newState.selected[id] = s.selected[id]
+	}
+
+	return newState
 }
 
 func (s *State) DetectAdjacent(pTree *PipeTree) {
@@ -98,16 +123,17 @@ func NewRouterState() *RouterState {
 func (rs *RouterState) Start(source, dest int, rTree *RouterTree) {
 	rs.destID = dest
 
-	s := NewState(source)
+	s := NewStateFromTree(rTree)
 	s.selected[source] = true
-	s.StoreRouterState(rTree)
+	s.currentRouter = source
+
 	rs.state = append(rs.state, s)
 
 	if logState {
 		log.Printf("Sending packet from %d to %d", source, dest)
 	}
 
-	rs.loadState(rTree)
+	rs.loadState(0, rTree)
 }
 
 func (rs *RouterState) PrevState(rTree *RouterTree) {
@@ -118,44 +144,64 @@ func (rs *RouterState) PrevState(rTree *RouterTree) {
 	rs.state = slices.Delete(rs.state, rs.current, rs.current+1)
 	rs.current--
 
-	rs.loadState(rTree)
+	rs.loadState(rs.current, rTree)
 }
 
-func (rs *RouterState) RoutePacket(pTree *PipeTree) {
+func (rs *RouterState) DetectAdjacent(routerID int, pTree *PipeTree) {
 	s := rs.state[rs.current]
 	if s == nil {
 		return
 	}
 
-	r := pTree.Routers.Routers[s.currentRouter]
 	s.DetectAdjacent(pTree)
+}
 
-	nextHop, err := r.Router.RoutePacket(rs.destID)
+func (rs *RouterState) RoutePacket(pTree *PipeTree) error {
+	s := rs.state[rs.current]
+	if s == nil {
+		return fmt.Errorf("Current State %d does not exist", rs.current)
+	}
+
+	r := s.routers[s.currentRouter]
+	if r == nil {
+		return fmt.Errorf("Router %d does not exist in current state", s.currentRouter)
+	}
+
+	nextHop, err := r.RoutePacket(rs.destID)
 	if err != nil {
-		log.Print(err)
-		return
+		return err
 	}
 
 	if logState {
-		log.Printf("Sending packet from %d to %d", r.id, nextHop)
+		log.Printf("Sending packet from %d to %d", s.currentRouter, nextHop)
 	}
 
-	nextState := NewState(nextHop)
+	s.selected[nextHop] = true
+	s.currentRouter = nextHop
+	rs.loadState(rs.current, pTree.Routers)
 
-	for i := range s.selected {
-		nextState.selected[i] = true
-	}
-
-	nextState.selected[nextHop] = true
-	nextState.StoreRouterState(pTree.Routers)
-	rs.state = append(rs.state, nextState)
-	rs.current++
-
-	rs.loadState(pTree.Routers)
+	return nil
 }
 
-func (rs *RouterState) loadState(rTree *RouterTree) {
+func (rs *RouterState) NewState() {
 	s := rs.state[rs.current]
+	state := NewStateFromState(s)
+
+	rs.current = len(rs.state)
+	rs.state = append(rs.state, state)
+}
+
+func (rs *RouterState) loadState(stateID int, rTree *RouterTree) {
+	if stateID < 0 || stateID >= len(rs.state) {
+		log.Printf("State %d out of range", stateID)
+		return
+	}
+
+	s := rs.state[stateID]
+	if s == nil {
+		log.Printf("State %d does not exist", stateID)
+		return
+	}
 
 	for id, r := range rTree.Routers {
 		if r == nil {
@@ -214,12 +260,12 @@ func (rs *RouterState) addInfo(r1, r2, dist int, rTree *RouterTree) (err error) 
 	routerModel := rs.RouterInfo[r1]
 	iter := rTree.RouterIter[r2]
 
-	adjName, err := ModelGetValue[string](model, iter, ROUTER_NAME)
+	adjName, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
 	if err != nil {
 		return
 	}
 
-	adjIP, err := ModelGetValue[string](model, iter, ROUTER_IP)
+	adjIP, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_IP)
 	if err != nil {
 		return
 	}

@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <object class="GtkPaned" id="body">
+    <property name="orientation">horizontal</property>
+    <property name="position">700</property>
+    
+    <!-- Left Box -->
+    <child>
+      <object class="GtkBox" id="left">
+        <property name="orientation">vertical</property>
+
+        <child>
+          <object class="GtkHeaderBar">
+            <property name="title">Routers</property>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkNotebook" id="nb">
+          </object>
+        </child>
+
+      </object>
+    </child>
+
+    <!-- Right Box -->
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+
+        <child>
+          <object class="GtkHeaderBar">
+            <property name="title">Network Layout</property>
+          </object>
+        </child>
+
+        <!-- Prepare Message -->
+        <child>
+          <object class="GtkFlowBox">
+            <property name="selection-mode">none</property>
+            <property name="column-spacing">10</property>
+            <property name="row-spacing">10</property>
+
+            <child>
+              <object class="GtkButton" id="add-router">
+                <property name="label">Add Router</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Send Message</property>
+                <property name="width-chars">10</property>
+              </object>
+            </child>
+
+            <!-- Source Select -->
+            <child> 
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label">Source:</property>
+                    <property name="width-chars">15</property>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkComboBox" id="source-select">
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <!-- Dest Select -->
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label">Destination:</property>
+                    <property name="width-chars">15</property>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkComboBox" id="dest-select">
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="send">
+                <property name="label">Send</property>
+              </object>
+            </child>
+
+          </object>
+
+          <packing>
+            <property name="padding">5</property>
+          </packing>
+        </child>
+
+        <child>
+          <object class="GtkSeparator">
+          </object>
+
+          <packing>
+            <property name="padding">5</property>
+          </packing>
+        </child>
+
+        <!-- Broadcast -->
+        <child>
+          <object class="GtkFlowBox">
+            <property name="selection-mode">none</property>
+            <property name="column-spacing">10</property>
+            <property name="row-spacing">10</property>
+
+            <child>
+              <object class="GtkButton" id="broadcast">
+                <property name="label">Broadcast All</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label">Broadcast Router: </property>
+                  </object>
+
+                  <packing>
+                    <property name="padding">20</property>
+                  </packing>
+                </child>
+
+                <child>
+                  <object class="GtkComboBox" id="broadcast-select">
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkButton" id="broadcast-router">
+                    <property name="label">Broadcast Router</property>
+                  </object>
+
+                  <packing>
+                    <property name="padding">20</property>
+                  </packing>
+                </child>
+
+              </object>
+            </child>
+
+          </object>
+
+          <packing>
+            <property name="padding">5</property>
+          </packing>
+        </child>
+
+        <!-- Detect -->
+        <child>
+          <object class="GtkFlowBox">
+            <property name="selection-mode">none</property>
+            <property name="column-spacing">10</property>
+            <property name="row-spacing">10</property>
+
+            <child>
+              <object class="GtkButton" id="detect">
+                <property name="label">Detect All</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label">Detect Router: </property>
+                  </object>
+
+                  <packing>
+                    <property name="padding">20</property>
+                  </packing>
+                </child>
+
+                <child>
+                  <object class="GtkComboBox" id="detect-select">
+                  </object>
+
+                  <packing>
+                    <property name="padding">20</property>
+                  </packing>
+                </child>
+
+                <child>
+                  <object class="GtkButton" id="detect-router">
+                    <property name="label">Detect Router</property>
+                  </object>
+
+                  <packing>
+                    <property name="padding">20</property>
+                  </packing>
+                </child>
+
+              </object>
+            </child>
+
+          </object>
+
+          <packing>
+            <property name="padding">5</property>
+          </packing>
+        </child>
+
+
+        <!-- State -->
+        <child>
+          <object class="GtkFlowBox">
+            <property name="selection-mode">none</property>
+            <property name="column-spacing">10</property>
+            <property name="row-spacing">10</property>
+
+            <child>
+              <object class="GtkButton" id="prev-state">
+                <property name="label">Previous State</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="next-hop">
+                <property name="label">Next Hop</property>
+              </object>
+            </child>
+
+          </object>
+
+          <packing>
+            <property name="padding">5</property>
+          </packing>
+        </child>
+
+        <child>
+          <object class="GtkSeparator">
+          </object>
+
+          <packing>
+            <property name="padding">5</property>
+          </packing>
+        </child>
+
+        <child>
+          <object class="GtkDrawingArea" id="draw">
+          </object>
+
+          <packing>
+            <property name="expand">true</property>
+          </packing>
+        </child>
+
+      </object>
+    </child>
+
+  </object>
+</interface>

@@ -3,6 +3,7 @@ package router
 import (
 	"log"
 	"math"
+	"routing-gui/gtk_utils"
 	"strconv"
 
 	"github.com/gotk3/gotk3/cairo"
@@ -94,7 +95,7 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 				return
 			}
 
-			router1ID, err := ModelGetValue[int](model, iter1, ROUTER_ID)
+			router1ID, err := gtk_utils.ModelGetValue[int](model, iter1, ROUTER_ID)
 			if err != nil {
 				return
 			}
@@ -105,7 +106,7 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 				return
 			}
 
-			router2ID, err := ModelGetValue[int](model, iter2, ROUTER_ID)
+			router2ID, err := gtk_utils.ModelGetValue[int](model, iter2, ROUTER_ID)
 			if err != nil {
 				return
 			}
@@ -183,7 +184,7 @@ func (pTree *PipeTree) updateRow(iter *gtk.TreeIter) (err error) {
 	var s string
 	var id int
 	for i := range 4 {
-		id, err = ModelGetValue[int](model, iter, ids[i])
+		id, err = gtk_utils.ModelGetValue[int](model, iter, ids[i])
 		if err != nil {
 			return
 		}

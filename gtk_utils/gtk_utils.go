@@ -1,4 +1,4 @@
-package router
+package gtk_utils
 
 import (
 	"fmt"
