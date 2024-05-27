@@ -198,7 +198,6 @@ func buildWindow(win *gtk.Window) {
 			}
 
 			state.Start(sourceID, destID, routers)
-			state.LoadState(routers)
 			draw.QueueDraw()
 
 			nextState.SetSensitive(true)
@@ -212,8 +211,8 @@ func buildWindow(win *gtk.Window) {
 		})
 
 		prevState.Connect("clicked", func() {
-			state.PrevState()
-			state.LoadState(routers)
+			state.PrevState(routers)
+			state.UpdateRouterInfo(routers)
 			draw.QueueDraw()
 
 			prevState.SetSensitive(state.IsPrevState())
@@ -221,8 +220,8 @@ func buildWindow(win *gtk.Window) {
 		})
 
 		nextState.Connect("clicked", func() {
-			state.NextState(pipes)
-			state.LoadState(routers)
+			state.RoutePacket(pipes)
+			state.UpdateRouterInfo(routers)
 			draw.QueueDraw()
 
 			prevState.SetSensitive(state.IsPrevState())
@@ -230,7 +229,25 @@ func buildWindow(win *gtk.Window) {
 		})
 
 		broadcast.Connect("clicked", func() {
-			state.Broadcast(pipes)
+			state.Broadcast()
+			state.UpdateRouterInfo(routers)
+		})
+
+		broadcastRouter.Connect("clicked", func() {
+			model := routers.Model.ToTreeModel()
+			iter, err := broadcastRouterSelect.GetActiveIter()
+			if err != nil {
+				log.Print(err)
+				return
+			}
+
+			routerID, err := router.ModelGetValue[int](model, iter, router.ROUTER_NAME)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+
+			state.BroadcastRouter(routerID)
 		})
 
 		draw.Connect("draw", func(d *gtk.DrawingArea, cr *cairo.Context) {

@@ -205,6 +205,14 @@ func unitVector(x, y float64) (float64, float64) {
 	return x / norm, y / norm
 }
 
+func normalVector(x, y float64) (float64, float64) {
+	if x == 0 {
+		return y, 0
+	}
+
+	return -y, x
+}
+
 func (pTree *PipeTree) Draw(cr *cairo.Context) {
 	for conn := range pTree.Router1 {
 		r1Id := pTree.Router1[conn]
@@ -219,14 +227,14 @@ func (pTree *PipeTree) Draw(cr *cairo.Context) {
 		x2 := r2.X + r2.W/2
 		y2 := r2.Y + r2.H/2
 
-		vx, vy := unitVector(x2-x1, y2-y1)
+		unitX, unitY := unitVector(x2-x1, y2-y1)
 
 		radius := float64(75)
 
-		startX := x1 + radius*vx
-		startY := y1 + radius*vy
-		endX := x2 - radius*vx
-		endY := y2 - radius*vy
+		startX := x1 + radius*unitX
+		startY := y1 + radius*unitY
+		endX := x2 - radius*unitX
+		endY := y2 - radius*unitY
 		lineWidth := float64(8)
 
 		cr.SetSourceRGB(0, 0, 0)
@@ -253,9 +261,11 @@ func (pTree *PipeTree) Draw(cr *cairo.Context) {
 		centerX := (endX + startX) / 2
 		centerY := (endY + startY) / 2
 
+		normalX, normalY := normalVector(unitX, unitY)
+		dist := float64(20)
+
 		w := strconv.Itoa(pTree.Weight[conn])
-		te := cr.TextExtents(w)
-		cr.MoveTo(centerX-te.Width/2, centerY-20)
+		cr.MoveTo(centerX+normalX*dist, centerY+normalY*dist)
 		cr.ShowText(w)
 	}
 }

@@ -7,16 +7,6 @@ import (
 	"github.com/gotk3/gotk3/cairo"
 )
 
-type Router interface {
-	RoutePacket(int) (int, error)
-	Broadcast() map[int]int
-	Recieve(int, map[int]int)
-	Info() map[int]int
-	AddRouter(int, int)
-	RemoveRouter(int)
-	Copy() Router
-}
-
 type RouterIcon struct {
 	Router   Router
 	id       int
