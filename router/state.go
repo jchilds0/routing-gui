@@ -213,14 +213,6 @@ func (rs *RouterState) loadState(stateID int, rTree *RouterTree) {
 	}
 }
 
-func (rs *RouterState) Broadcast() {
-	s := rs.state[rs.current]
-
-	for id := range s.routers {
-		s.Broadcast(id)
-	}
-}
-
 func (rs *RouterState) BroadcastRouter(routerID int) {
 	s := rs.state[rs.current]
 	s.Broadcast(routerID)
@@ -237,6 +229,7 @@ func (rs *RouterState) IsNextState() bool {
 
 func (rs *RouterState) UpdateRouterInfo(rTree *RouterTree) {
 	s := rs.state[rs.current]
+
 	for r1, r := range s.routers {
 		if rs.RouterInfo[r1] == nil {
 			rs.RouterInfo[r1], _ = gtk.ListStoreNew(glib.TYPE_STRING, glib.TYPE_STRING, glib.TYPE_INT)

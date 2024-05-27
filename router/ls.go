@@ -1,5 +1,7 @@
 package router
 
+import "maps"
+
 type LinkStateRouter struct {
 	id       int
 	dist     map[int]map[int]int
@@ -52,5 +54,12 @@ func (ls *LinkStateRouter) RemoveRouter(routerID int) {
 }
 
 func (ls *LinkStateRouter) Copy() Router {
-	return ls
+	newLS := NewLinkStateRouter(ls.id)
+
+	newLS.adjacent = maps.Clone(ls.adjacent)
+	for id, m := range newLS.dist {
+		newLS.dist[id] = maps.Clone(m)
+	}
+
+	return newLS
 }

@@ -223,8 +223,17 @@ func buildWindow(win *gtk.Window) {
 
 	broadcast.Connect("clicked", func() {
 		state.NewState()
-		state.Broadcast()
+
+		for id, r := range routers.Routers {
+			if r == nil {
+				continue
+			}
+
+			state.BroadcastRouter(id)
+		}
+
 		state.UpdateRouterInfo(routers)
+		prevState.SetSensitive(state.IsPrevState())
 	})
 
 	broadcastRouter.Connect("clicked", func() {
@@ -245,6 +254,7 @@ func buildWindow(win *gtk.Window) {
 
 		state.BroadcastRouter(routerID)
 		state.UpdateRouterInfo(routers)
+		prevState.SetSensitive(state.IsPrevState())
 	})
 
 	detect.Connect("clicked", func() {
@@ -259,6 +269,7 @@ func buildWindow(win *gtk.Window) {
 		}
 
 		state.UpdateRouterInfo(routers)
+		prevState.SetSensitive(state.IsPrevState())
 	})
 
 	detectRouter.Connect("clicked", func() {
@@ -279,6 +290,7 @@ func buildWindow(win *gtk.Window) {
 
 		state.DetectAdjacent(routerID, pipes)
 		state.UpdateRouterInfo(routers)
+		prevState.SetSensitive(state.IsPrevState())
 	})
 
 	draw.Connect("draw", func(d *gtk.DrawingArea, cr *cairo.Context) {
