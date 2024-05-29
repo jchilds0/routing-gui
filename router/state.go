@@ -117,14 +117,14 @@ type RouterState struct {
 	state      []*State
 	current    int
 	destID     int
-	RouterInfo map[int]*gtk.ListStore
+	RouterInfo map[int]*gtk.TreeModelSort
 }
 
 func NewRouterState() *RouterState {
 	rs := &RouterState{}
 
 	rs.state = make([]*State, 0, 30)
-	rs.RouterInfo = make(map[int]*gtk.ListStore, 30)
+	rs.RouterInfo = make(map[int]*gtk.TreeModelSort, 30)
 	return rs
 }
 
@@ -239,21 +239,21 @@ func (rs *RouterState) UpdateRouterInfo(rTree *RouterTree) {
 	s := rs.state[rs.current]
 
 	for r1, r := range s.routers {
-		if rs.RouterInfo[r1] == nil {
-			rs.RouterInfo[r1], _ = gtk.ListStoreNew(
-				glib.TYPE_STRING,
-				glib.TYPE_STRING,
-				glib.TYPE_STRING,
-				glib.TYPE_STRING,
-				glib.TYPE_INT,
-			)
-		}
+		model, _ := gtk.ListStoreNew(
+			glib.TYPE_STRING,
+			glib.TYPE_STRING,
+			glib.TYPE_STRING,
+			glib.TYPE_STRING,
+			glib.TYPE_INT,
+		)
 
-		rs.RouterInfo[r1].Clear()
+		rs.RouterInfo[r1], _ = gtk.TreeModelSortNew(model)
+		rs.RouterInfo[r1].SetSortColumnId(INFO_DEST_NAME, gtk.SORT_ASCENDING)
+
 		info := r.Info()
 
 		for _, p := range info {
-			err := rs.addInfo(r1, p, rTree)
+			err := rs.addInfo(model, p, rTree)
 			if err != nil {
 				log.Printf("Error adding info for router %d: %s", r1, err)
 				continue
@@ -262,10 +262,8 @@ func (rs *RouterState) UpdateRouterInfo(rTree *RouterTree) {
 	}
 }
 
-func (rs *RouterState) addInfo(r1 int, p Path, rTree *RouterTree) (err error) {
+func (rs *RouterState) addInfo(routerModel *gtk.ListStore, p Path, rTree *RouterTree) (err error) {
 	model := rTree.Model.ToTreeModel()
-	routerModel := rs.RouterInfo[r1]
-
 	iter := rTree.RouterIter[p.DestID]
 
 	destName, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)

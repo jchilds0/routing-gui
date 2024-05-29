@@ -43,7 +43,7 @@ func buildWindow(win *gtk.Window) {
 	box, err := gtk_utils.BuilderGetObject[*gtk.Paned](builder, "body")
 	win.Add(box)
 
-	routers = router.NewRouterTree(func(routerID int) *gtk.ListStore {
+	routers = router.NewRouterTree(func(routerID int) gtk.ITreeModel {
 		return state.RouterInfo[routerID]
 	})
 	pipes = router.NewPipeTree(routers)

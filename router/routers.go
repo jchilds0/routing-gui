@@ -27,7 +27,7 @@ type RouterTree struct {
 	routerLabel *gtk.HeaderBar
 }
 
-func NewRouterTree(getRouterList func(int) *gtk.ListStore) *RouterTree {
+func NewRouterTree(getRouterList func(int) gtk.ITreeModel) *RouterTree {
 	rTree := &RouterTree{MaxRouterID: 1}
 	rTree.Routers = make(map[int]*RouterIcon, 100)
 	rTree.RouterIter = make(map[int]*gtk.TreeIter, 100)
