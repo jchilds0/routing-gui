@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	ROUTER1_ID = iota
+	PIPE_ID = iota
+	ROUTER1_ID
 	ROUTER1_NAME
 	ROUTER1_IP
 	ROUTER2_ID
@@ -52,7 +53,6 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 		pTree.Box.PackStart(buttonBox, false, false, 15)
 
 		/* Router 1 */
-
 		box1, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
 		buttonBox.Add(box1)
 
@@ -69,7 +69,6 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 		box1.PackStart(router1, false, false, 0)
 
 		/* Router 2 */
-
 		box2, _ := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
 		buttonBox.Add(box2)
 
@@ -111,7 +110,7 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 				return
 			}
 
-			err = pTree.AddConnection(router1ID, router2ID)
+			err = pTree.AddConnection(router1ID, router2ID, 1)
 			if err != nil {
 				log.Printf("Error adding connection: %s", err)
 				return
@@ -125,6 +124,7 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 	{
 		// List View
 		pTree.Model, _ = gtk.ListStoreNew(
+			glib.TYPE_INT,
 			glib.TYPE_INT,
 			glib.TYPE_STRING,
 			glib.TYPE_STRING,
@@ -153,14 +153,39 @@ func NewPipeTree(rs *RouterTree) *PipeTree {
 		col, _ = gtk.TreeViewColumnNewWithAttribute("Router 2 IP", cell, "text", ROUTER2_IP)
 		pTree.List.AppendColumn(col)
 
-		col, _ = gtk.TreeViewColumnNewWithAttribute("Weight", cell, "text", WEIGHT)
+		w, _ := gtk.CellRendererTextNew()
+		w.SetProperty("editable", true)
+		w.Connect("edited",
+			func(cell *gtk.CellRendererText, path, text string) {
+				iter, err := pTree.Model.GetIterFromString(path)
+				if err != nil {
+					log.Printf("Error editing name: %s", err)
+					return
+				}
+
+				id, err := gtk_utils.ModelGetValue[int](pTree.Model.ToTreeModel(), iter, PIPE_ID)
+				if err != nil {
+					log.Printf("Error getting id: %s", err)
+					return
+				}
+
+				pTree.Weight[id], err = strconv.Atoi(text)
+				if err != nil {
+					log.Print(err)
+					return
+				}
+
+				pTree.Model.SetValue(iter, WEIGHT, text)
+			})
+
+		col, _ = gtk.TreeViewColumnNewWithAttribute("Weight", w, "text", WEIGHT)
 		pTree.List.AppendColumn(col)
 	}
 
 	return pTree
 }
 
-func (pTree *PipeTree) AddConnection(r1, r2 int) (err error) {
+func (pTree *PipeTree) AddConnection(r1, r2, w int) (err error) {
 	iter := pTree.Model.Append()
 
 	pTree.Model.SetValue(iter, ROUTER1_ID, r1)
@@ -169,7 +194,8 @@ func (pTree *PipeTree) AddConnection(r1, r2 int) (err error) {
 	pTree.Model.SetValue(iter, ROUTER2_ID, r2)
 	pTree.Router2 = append(pTree.Router2, r2)
 
-	pTree.Weight = append(pTree.Weight, 0)
+	pTree.Weight = append(pTree.Weight, w)
+	pTree.Model.SetValue(iter, WEIGHT, w)
 
 	err = pTree.updateRow(iter)
 	return

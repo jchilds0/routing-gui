@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"routing-gui/gtk_utils"
-	"strconv"
 
 	"github.com/gotk3/gotk3/cairo"
 	"github.com/gotk3/gotk3/glib"
@@ -125,22 +124,20 @@ func NewRouterTree(getRouterList func(int) *gtk.ListStore) *RouterTree {
 	rTree.routerList, _ = gtk.TreeViewNew()
 	rTree.RouterInfo.PackStart(rTree.routerList, false, false, 0)
 
-	col, _ = gtk.TreeViewColumnNewWithAttribute("Name", name, "text", INFO_NAME)
-	rTree.routerList.AppendColumn(col)
+	cols := []string{"Destination Name", "Destination IP", "Next Hop Name", "Next Hop IP", "Distance"}
+	cols_index := []int{INFO_DEST_NAME, INFO_DEST_IP, INFO_NEXT_NAME, INFO_NEXT_IP, INFO_DIST}
+	stateCol, _ := gtk.CellRendererTextNew()
 
-	col, _ = gtk.TreeViewColumnNewWithAttribute("IP Address", name, "text", INFO_IP)
-	rTree.routerList.AppendColumn(col)
-
-	col, _ = gtk.TreeViewColumnNewWithAttribute("Distance", name, "text", INFO_DIST)
-	rTree.routerList.AppendColumn(col)
+	for i := range cols {
+		col, _ = gtk.TreeViewColumnNewWithAttribute(cols[i], stateCol, "text", cols_index[i])
+		rTree.routerList.AppendColumn(col)
+	}
 
 	return rTree
 }
 
 func (rTree *RouterTree) AddRouter(r *RouterIcon) {
 	r.id = rTree.MaxRouterID
-	r.Name = "Router " + strconv.Itoa(r.id)
-	r.IP = "127.0.0.1"
 
 	iter := rTree.Model.Append()
 	rTree.Model.SetValue(iter, ROUTER_ID, r.id)

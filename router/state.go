@@ -12,11 +12,17 @@ import (
 
 const logState = true
 
+type Path struct {
+	DestID    int
+	NextHopID int
+	Dist      int
+}
+
 type Router interface {
 	RoutePacket(int) (int, error)
 	Broadcast() map[int]int
 	Recieve(int, map[int]int)
-	Info() map[int]int
+	Info() []Path
 	AddRouter(int, int)
 	RemoveRouter(int)
 	Copy() Router
@@ -66,16 +72,16 @@ func NewStateFromState(s *State) *State {
 	return newState
 }
 
-func (s *State) DetectAdjacent(pTree *PipeTree) {
-	for id1, router1 := range s.routers {
-		for i := range pTree.Router1 {
-			if pTree.Router1[i] == id1 {
-				router1.AddRouter(pTree.Router2[i], pTree.Weight[i])
-			}
+func (s *State) DetectAdjacent(pTree *PipeTree, routerID int) {
+	router := s.routers[routerID]
 
-			if pTree.Router2[i] == id1 {
-				router1.AddRouter(pTree.Router1[i], pTree.Weight[i])
-			}
+	for i := range pTree.Router1 {
+		if pTree.Router1[i] == routerID {
+			router.AddRouter(pTree.Router2[i], pTree.Weight[i])
+		}
+
+		if pTree.Router2[i] == routerID {
+			router.AddRouter(pTree.Router1[i], pTree.Weight[i])
 		}
 	}
 }
@@ -100,8 +106,10 @@ func (s *State) Broadcast(id1 int) {
 }
 
 const (
-	INFO_NAME = iota
-	INFO_IP
+	INFO_DEST_NAME = iota
+	INFO_DEST_IP
+	INFO_NEXT_NAME
+	INFO_NEXT_IP
 	INFO_DIST
 )
 
@@ -153,7 +161,7 @@ func (rs *RouterState) DetectAdjacent(routerID int, pTree *PipeTree) {
 		return
 	}
 
-	s.DetectAdjacent(pTree)
+	s.DetectAdjacent(pTree, routerID)
 }
 
 func (rs *RouterState) RoutePacket(pTree *PipeTree) error {
@@ -232,41 +240,69 @@ func (rs *RouterState) UpdateRouterInfo(rTree *RouterTree) {
 
 	for r1, r := range s.routers {
 		if rs.RouterInfo[r1] == nil {
-			rs.RouterInfo[r1], _ = gtk.ListStoreNew(glib.TYPE_STRING, glib.TYPE_STRING, glib.TYPE_INT)
+			rs.RouterInfo[r1], _ = gtk.ListStoreNew(
+				glib.TYPE_STRING,
+				glib.TYPE_STRING,
+				glib.TYPE_STRING,
+				glib.TYPE_STRING,
+				glib.TYPE_INT,
+			)
 		}
 
 		rs.RouterInfo[r1].Clear()
 		info := r.Info()
 
-		for r2, dist := range info {
-			err := rs.addInfo(r1, r2, dist, rTree)
+		for _, p := range info {
+			err := rs.addInfo(r1, p, rTree)
 			if err != nil {
-				log.Println(err)
+				log.Printf("Error adding info for router %d: %s", r1, err)
 				continue
 			}
 		}
 	}
 }
 
-func (rs *RouterState) addInfo(r1, r2, dist int, rTree *RouterTree) (err error) {
+func (rs *RouterState) addInfo(r1 int, p Path, rTree *RouterTree) (err error) {
 	model := rTree.Model.ToTreeModel()
 	routerModel := rs.RouterInfo[r1]
-	iter := rTree.RouterIter[r2]
 
-	adjName, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
+	iter := rTree.RouterIter[p.DestID]
+
+	destName, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
 	if err != nil {
+		err = fmt.Errorf("Col %d: %s", ROUTER_NAME, err)
 		return
 	}
 
-	adjIP, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_IP)
+	destIP, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_IP)
 	if err != nil {
+		err = fmt.Errorf("Col %d: %s", ROUTER_IP, err)
 		return
+	}
+
+	iter = rTree.RouterIter[p.NextHopID]
+	nextName := "-"
+	nextIP := "-"
+	if iter != nil {
+		nextName, err = gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
+		if err != nil {
+			nextName = "-"
+		}
+
+		nextIP, err = gtk_utils.ModelGetValue[string](model, iter, ROUTER_IP)
+		if err != nil {
+			nextIP = "-"
+		}
+
+		err = nil
 	}
 
 	row := routerModel.Append()
-	routerModel.SetValue(row, INFO_NAME, adjName)
-	routerModel.SetValue(row, INFO_IP, adjIP)
-	routerModel.SetValue(row, INFO_DIST, dist)
+	routerModel.SetValue(row, INFO_DEST_NAME, destName)
+	routerModel.SetValue(row, INFO_DEST_IP, destIP)
+	routerModel.SetValue(row, INFO_NEXT_NAME, nextName)
+	routerModel.SetValue(row, INFO_NEXT_IP, nextIP)
+	routerModel.SetValue(row, INFO_DIST, p.Dist)
 
 	return
 }

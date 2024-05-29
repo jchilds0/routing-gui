@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"routing-gui/gtk_utils"
+	"routing-gui/protocol"
 	"routing-gui/router"
 
 	"github.com/gotk3/gotk3/cairo"
@@ -22,6 +23,7 @@ func main() {
 	buildWindow(win)
 
 	win.SetDefaultSize(800, 600)
+	win.SetDecorated(true)
 	win.ShowAll()
 	gtk.Main()
 }
@@ -156,7 +158,7 @@ func buildWindow(win *gtk.Window) {
 	draw.AddEvents(int(gdk.POINTER_MOTION_MASK))
 
 	addRouterButton.Connect("clicked", func() {
-		addRouter(draw)
+		addRouter(draw, "Router", "127.0.0.1")
 	})
 
 	send.Connect("clicked", func() {
@@ -309,20 +311,35 @@ func buildWindow(win *gtk.Window) {
 	)
 
 	// testing layout
-	addRouter(draw)
-	addRouter(draw)
-	addRouter(draw)
-	addRouter(draw)
+	addRouter(draw, "A", "127.0.0.1")
+	addRouter(draw, "B", "127.0.0.1")
+	addRouter(draw, "C", "127.0.0.1")
+	addRouter(draw, "D", "127.0.0.1")
+	addRouter(draw, "E", "127.0.0.1")
+	addRouter(draw, "F", "127.0.0.1")
+	addRouter(draw, "G", "127.0.0.1")
+	addRouter(draw, "H", "127.0.0.1")
 
-	pipes.AddConnection(1, 2)
-	pipes.AddConnection(2, 3)
-	pipes.AddConnection(1, 3)
-	pipes.AddConnection(3, 4)
+	pipes.AddConnection(1, 2, 2) // A -- B
+	pipes.AddConnection(2, 3, 7) // B -- C
+	pipes.AddConnection(3, 4, 3) // C -- D
+	pipes.AddConnection(2, 5, 2) // B -- E
+	pipes.AddConnection(1, 7, 6) // A -- G
+	pipes.AddConnection(7, 5, 1) // G -- E
+	pipes.AddConnection(5, 6, 2) // E -- F
+	pipes.AddConnection(6, 8, 2) // F -- H
+	pipes.AddConnection(7, 8, 4) // G -- H
+	pipes.AddConnection(6, 3, 3) // F -- C
+	pipes.AddConnection(8, 4, 2) // H -- D
+
 }
 
-func addRouter(draw *gtk.DrawingArea) {
-	ls := router.NewLinkStateRouter(routers.MaxRouterID)
+func addRouter(draw *gtk.DrawingArea, name string, ip string) {
+	ls := protocol.NewLinkStateRouter(routers.MaxRouterID)
 	newRouter := router.NewRouter(ls)
+	newRouter.Name = name
+	newRouter.IP = ip
+
 	routers.AddRouter(newRouter)
 	draw.QueueDraw()
 }
