@@ -17,9 +17,140 @@
 
         <child>
           <object class="GtkNotebook" id="nb">
+
+            <!-- Routers -->
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+
+                <child>
+                  <object class="GtkFlowBox">
+                    <property name="selection-mode">none</property>
+                    <property name="column-spacing">10</property>
+                    <property name="row-spacing">10</property>
+
+                    <child>
+                      <object class="GtkButton" id="add-router">
+                        <property name="label">Add Router</property>
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkComboBox" id="router-select">
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkButton" id="remove-router">
+                        <property name="label">Delete Router</property>
+                      </object>
+                    </child>
+
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkTreeView" id="router-list">
+                  </object>
+                </child>
+
+              </object>
+            </child>
+
+            <child type="tab">
+              <object class="GtkLabel">
+                <property name="label">Routers</property>
+              </object>
+            </child>
+
+            <!-- Connections -->
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+
+                <child>
+                  <object class="GtkFlowBox">
+                    <property name="selection-mode">none</property>
+                    <property name="column-spacing">10</property>
+                    <property name="row-spacing">10</property>
+
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Router 1</property>
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkComboBox" id="pipe-router-1">
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Router 2</property>
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkComboBox" id="pipe-router-2">
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkButton" id="add-pipe">
+                        <property name="label">Add Connection</property>
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkButton" id="remove-pipe">
+                        <property name="label">Remove Connection</property>
+                      </object>
+                    </child>
+
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkTreeView" id="pipe-list">
+                  </object>
+                </child>
+
+              </object>
+            </child>
+
+            <child type="tab">
+              <object class="GtkLabel">
+                <property name="label">Connections</property>
+              </object>
+            </child>
+
+            <!-- State -->
+            <child>
+              <object class="GtkButton">
+                <property name="label">Add Router</property>
+              </object>
+            </child>
+
+            <child type="tab">
+              <object class="GtkLabel">
+                <property name="label">State</property>
+              </object>
+            </child>
+
           </object>
         </child>
 
+        <child>
+          <object class="GtkHeaderBar" id="state-title">
+            <property name="title">Router State</property>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkTreeView" id="router-state">
+          </object>
+        </child>
       </object>
     </child>
 
@@ -40,12 +171,6 @@
             <property name="selection-mode">none</property>
             <property name="column-spacing">10</property>
             <property name="row-spacing">10</property>
-
-            <child>
-              <object class="GtkButton" id="add-router">
-                <property name="label">Add Router</property>
-              </object>
-            </child>
 
             <child>
               <object class="GtkLabel">

@@ -121,9 +121,10 @@ const (
 type RouterState struct {
 	rTree      *RouterTree
 	pTree      *PipeTree
-	state      []*State
-	stateIter  []*gtk.TreeIter
-	current    int
+	state      map[int]*State
+	stateIter  map[int]*gtk.TreeIter
+	currentID  int
+	nextID     int
 	destID     int
 	RouterInfo map[int]*gtk.TreeModelSort
 	StateInfo  *gtk.TreeView
@@ -132,12 +133,14 @@ type RouterState struct {
 
 func NewRouterState(pTree *PipeTree) *RouterState {
 	rs := &RouterState{
-		rTree: pTree.Routers,
-		pTree: pTree,
+		rTree:     pTree.Routers,
+		pTree:     pTree,
+		currentID: 0,
+		nextID:    1,
 	}
 
-	rs.state = make([]*State, 0, 30)
-	rs.stateIter = make([]*gtk.TreeIter, 0, 30)
+	rs.state = make(map[int]*State, 30)
+	rs.stateIter = make(map[int]*gtk.TreeIter, 30)
 	rs.RouterInfo = make(map[int]*gtk.TreeModelSort, 30)
 
 	{
@@ -168,7 +171,7 @@ func NewRouterState(pTree *PipeTree) *RouterState {
 					return
 				}
 
-				rs.current = id
+				rs.currentID = id
 				rs.loadState()
 			})
 	}
@@ -182,7 +185,7 @@ func (rs *RouterState) Start(source, dest int) {
 	s.selected[source] = true
 	s.currentRouter = source
 
-	rs.state = append(rs.state, s)
+	rs.state[rs.currentID] = s
 
 	model := rs.rTree.Model.ToTreeModel()
 	sourceName, err := gtk_utils.ModelGetValue[string](model, rs.rTree.RouterIter[source], ROUTER_NAME)
@@ -198,8 +201,8 @@ func (rs *RouterState) Start(source, dest int) {
 	}
 
 	iter := rs.infoModel.Append(nil)
-	rs.stateIter = append(rs.stateIter, iter)
-	rs.infoModel.SetValue(iter, STATE_ID, rs.current)
+	rs.stateIter[rs.currentID] = iter
+	rs.infoModel.SetValue(iter, STATE_ID, rs.currentID)
 
 	desc := fmt.Sprintf("Send Message Router %s to %s", sourceName, destName)
 	rs.infoModel.SetValue(iter, STATE_DESC, desc)
@@ -212,11 +215,10 @@ func (rs *RouterState) Start(source, dest int) {
 }
 
 func (rs *RouterState) PrevState() {
-	if rs.current == 0 {
+	currentIter := rs.stateIter[rs.currentID]
+	if currentIter == nil {
 		return
 	}
-
-	currentIter := rs.stateIter[rs.current]
 
 	var prevIter gtk.TreeIter
 	rs.infoModel.IterParent(&prevIter, currentIter)
@@ -227,12 +229,12 @@ func (rs *RouterState) PrevState() {
 		return
 	}
 
-	rs.current = prevID
+	rs.currentID = prevID
 	rs.loadState()
 }
 
 func (rs *RouterState) DetectAdjacent(routerID int) {
-	s := rs.state[rs.current]
+	s := rs.state[rs.currentID]
 	if s == nil {
 		return
 	}
@@ -241,9 +243,9 @@ func (rs *RouterState) DetectAdjacent(routerID int) {
 }
 
 func (rs *RouterState) RoutePacket() error {
-	s := rs.state[rs.current]
+	s := rs.state[rs.currentID]
 	if s == nil {
-		return fmt.Errorf("Current State %d does not exist", rs.current)
+		return fmt.Errorf("Current State %d does not exist", rs.currentID)
 	}
 
 	r := s.routers[s.currentRouter]
@@ -268,32 +270,28 @@ func (rs *RouterState) RoutePacket() error {
 }
 
 func (rs *RouterState) NewState(desc string) {
-	s := rs.state[rs.current]
-	iter := rs.stateIter[rs.current]
-	state := NewStateFromState(s)
+	s := rs.state[rs.currentID]
+	iter := rs.stateIter[rs.currentID]
 
-	rs.current = len(rs.state)
-	rs.state = append(rs.state, state)
+	rs.currentID = rs.nextID
+	rs.nextID++
+
+	rs.state[rs.currentID] = NewStateFromState(s)
 
 	newIter := rs.infoModel.Append(iter)
-	rs.stateIter = append(rs.stateIter, newIter)
+	rs.stateIter[rs.currentID] = newIter
 
 	path, _ := rs.infoModel.GetPath(iter)
 	rs.StateInfo.ExpandRow(path, false)
 
-	rs.infoModel.SetValue(rs.stateIter[rs.current], STATE_ID, rs.current)
-	rs.infoModel.SetValue(rs.stateIter[rs.current], STATE_DESC, desc)
+	rs.infoModel.SetValue(rs.stateIter[rs.currentID], STATE_ID, rs.currentID)
+	rs.infoModel.SetValue(rs.stateIter[rs.currentID], STATE_DESC, desc)
 }
 
 func (rs *RouterState) loadState() {
-	if rs.current < 0 || rs.current >= len(rs.state) {
-		log.Printf("State %d out of range", rs.current)
-		return
-	}
-
-	s := rs.state[rs.current]
+	s := rs.state[rs.currentID]
 	if s == nil {
-		log.Printf("State %d does not exist", rs.current)
+		log.Printf("State %d does not exist", rs.currentID)
 		return
 	}
 
@@ -308,21 +306,21 @@ func (rs *RouterState) loadState() {
 }
 
 func (rs *RouterState) BroadcastRouter(routerID int) {
-	s := rs.state[rs.current]
+	s := rs.state[rs.currentID]
 	s.Broadcast(routerID)
 }
 
 func (rs *RouterState) IsPrevState() bool {
-	return rs.current > 0
+	return rs.currentID > 0
 }
 
 func (rs *RouterState) IsNextState() bool {
-	s := rs.state[rs.current]
+	s := rs.state[rs.currentID]
 	return s.currentRouter != rs.destID
 }
 
 func (rs *RouterState) UpdateRouterInfo() {
-	s := rs.state[rs.current]
+	s := rs.state[rs.currentID]
 
 	for r1, r := range s.routers {
 		model, _ := gtk.ListStoreNew(

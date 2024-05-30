@@ -9,7 +9,7 @@ import (
 
 type RouterIcon struct {
 	Router   Router
-	id       int
+	RouterID int
 	Name     string
 	IP       string
 	X        float64

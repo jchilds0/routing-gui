@@ -36,6 +36,8 @@ var pipes *router.PipeTree
 var state *router.RouterState
 
 func buildWindow(win *gtk.Window) {
+	cell, _ := gtk.CellRendererTextNew()
+
 	builder, err := gtk.BuilderNewFromFile("./gui.ui")
 	if err != nil {
 		log.Fatal(err)
@@ -44,37 +46,84 @@ func buildWindow(win *gtk.Window) {
 	box, err := gtk_utils.BuilderGetObject[*gtk.Paned](builder, "body")
 	win.Add(box)
 
-	routers = router.NewRouterTree(func(routerID int) gtk.ITreeModel {
-		return state.RouterInfo[routerID]
-	})
+	routers = router.NewRouterTree()
 	pipes = router.NewPipeTree(routers)
 	state = router.NewRouterState(pipes)
 
-	nb, err := gtk_utils.BuilderGetObject[*gtk.Notebook](builder, "nb")
-
-	labelRouter, _ := gtk.LabelNewWithMnemonic("Routers")
-	nb.AppendPage(routers.List, labelRouter)
-
-	labelPipes, _ := gtk.LabelNewWithMnemonic("Connections")
-	nb.AppendPage(pipes.Box, labelPipes)
-
-	labelState, _ := gtk.LabelNewWithMnemonic("State")
-	nb.AppendPage(state.StateInfo, labelState)
-
-	left, err := gtk_utils.BuilderGetObject[*gtk.Box](builder, "left")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	left.PackStart(routers.RouterInfo, false, false, 0)
-
-	/* Prepare Message */
-	cell, _ := gtk.CellRendererTextNew()
+	/* Routers */
 
 	addRouterButton, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "add-router")
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	routerSelect, err := gtk_utils.BuilderGetObject[*gtk.ComboBox](builder, "router-select")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	routerSelect.SetModel(routers.Model)
+	routerSelect.CellLayout.PackStart(cell, true)
+	routerSelect.CellLayout.AddAttribute(cell, "text", router.ROUTER_NAME)
+	routerSelect.SetActive(router.ROUTER_NAME)
+
+	removeRouterButton, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "remove-router")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	routerList, err := gtk_utils.BuilderGetObject[*gtk.TreeView](builder, "router-list")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	routerList.SetModel(routers.Model)
+	routerList.SetActivateOnSingleClick(true)
+	routers.AddColumns(routerList, func(routerID int) gtk.ITreeModel {
+		return state.RouterInfo[routerID]
+	})
+
+	/* Connections */
+
+	pipeSelect1, err := gtk_utils.BuilderGetObject[*gtk.ComboBox](builder, "pipe-router-1")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pipeSelect1.SetModel(routers.Model)
+	pipeSelect1.CellLayout.PackStart(cell, true)
+	pipeSelect1.CellLayout.AddAttribute(cell, "text", router.ROUTER_NAME)
+	pipeSelect1.SetActive(router.ROUTER_NAME)
+
+	pipeSelect2, err := gtk_utils.BuilderGetObject[*gtk.ComboBox](builder, "pipe-router-2")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pipeSelect2.SetModel(routers.Model)
+	pipeSelect2.CellLayout.PackStart(cell, true)
+	pipeSelect2.CellLayout.AddAttribute(cell, "text", router.ROUTER_NAME)
+	pipeSelect2.SetActive(router.ROUTER_NAME)
+
+	addPipe, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "add-pipe")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	removePipe, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "remove-pipe")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pipeList, err := gtk_utils.BuilderGetObject[*gtk.TreeView](builder, "pipe-list")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pipeList.SetModel(pipes.Model)
+	pipes.AddColumns(pipeList)
+
+	/* Prepare Message */
 
 	sourceSelect, err := gtk_utils.BuilderGetObject[*gtk.ComboBox](builder, "source-select")
 	if err != nil {
@@ -118,12 +167,12 @@ func buildWindow(win *gtk.Window) {
 	broadcastRouterSelect.CellLayout.PackStart(cell, true)
 	broadcastRouterSelect.CellLayout.AddAttribute(cell, "text", router.ROUTER_NAME)
 
-	broadcastRouter, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "broadcast-router")
+	broadcastRouterButton, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "broadcast-router")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	detect, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "detect")
+	detectButton, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "detect")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -138,7 +187,7 @@ func buildWindow(win *gtk.Window) {
 	detectRouterSelect.CellLayout.PackStart(cell, true)
 	detectRouterSelect.CellLayout.AddAttribute(cell, "text", router.ROUTER_NAME)
 
-	detectRouter, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "detect-router")
+	detectRouterButton, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "detect-router")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -148,7 +197,7 @@ func buildWindow(win *gtk.Window) {
 		log.Fatal(err)
 	}
 
-	nextHop, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "next-hop")
+	nextHopButton, err := gtk_utils.BuilderGetObject[*gtk.Button](builder, "next-hop")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -161,19 +210,131 @@ func buildWindow(win *gtk.Window) {
 	draw.AddEvents(gdk.BUTTON1_MASK)
 	draw.AddEvents(int(gdk.POINTER_MOTION_MASK))
 
+	/* Routers */
 	addRouterButton.Connect("clicked", func() {
 		addRouter(draw, "Router", "127.0.0.1")
 	})
 
+	removeRouterButton.Connect("clicked", func() {
+		iter, err := routerSelect.GetActiveIter()
+		if err != nil {
+			log.Printf("Error getting router 1: %s", err)
+			return
+		}
+
+		r, err := routers.GetRouter(iter)
+		if err != nil {
+			log.Printf("Error getting router 1: %s", err)
+			return
+		}
+
+		routers.Model.Remove(iter)
+		delete(routers.Routers, r.RouterID)
+
+		// remove connections
+		for id := range pipes.PipeIter {
+			r1 := pipes.Router1[id]
+			r2 := pipes.Router2[id]
+
+			if r1 == r.RouterID || r2 == r.RouterID {
+				pipes.RemoveConnection(pipes.PipeIter[id])
+			}
+		}
+	})
+
+	/* Connections */
+	addPipe.Connect("clicked", func() {
+		iter1, err := pipeSelect1.GetActiveIter()
+		if err != nil {
+			log.Printf("Error getting router 1: %s", err)
+			return
+		}
+
+		r1, err := routers.GetRouter(iter1)
+		if err != nil {
+			log.Printf("Error getting router 1: %s", err)
+			return
+		}
+
+		iter2, err := pipeSelect2.GetActiveIter()
+		if err != nil {
+			log.Printf("Error getting router 2: %s", err)
+			return
+		}
+
+		r2, err := routers.GetRouter(iter2)
+		if err != nil {
+			log.Printf("Error getting router 2: %s", err)
+			return
+		}
+
+		if r1.RouterID == r2.RouterID {
+			log.Print("Routers are the same, not adding connection")
+			return
+		}
+
+		err = pipes.AddConnection(r1.RouterID, r2.RouterID, 1)
+		if err != nil {
+			log.Printf("Error adding connection: %s", err)
+			return
+		}
+	})
+
+	removePipe.Connect("clicked", func() {
+		iter1, err := pipeSelect1.GetActiveIter()
+		if err != nil {
+			log.Printf("Error getting router 1: %s", err)
+			return
+		}
+
+		r1, err := routers.GetRouter(iter1)
+		if err != nil {
+			log.Printf("Error getting router 1: %s", err)
+			return
+		}
+
+		iter2, err := pipeSelect2.GetActiveIter()
+		if err != nil {
+			log.Printf("Error getting router 2: %s", err)
+			return
+		}
+
+		r2, err := routers.GetRouter(iter2)
+		if err != nil {
+			log.Printf("Error getting router 2: %s", err)
+			return
+		}
+
+		for id := range pipes.PipeIter {
+			router1 := pipes.Router1[id]
+			router2 := pipes.Router2[id]
+
+			if router1 == r1.RouterID && router2 == r2.RouterID {
+				err := pipes.RemoveConnection(pipes.PipeIter[id])
+				if err != nil {
+					log.Print(err)
+				}
+			}
+
+			if router2 == r1.RouterID && router1 == r2.RouterID {
+				err := pipes.RemoveConnection(pipes.PipeIter[id])
+				if err != nil {
+					log.Print(err)
+				}
+			}
+		}
+	})
+
+	/* Message */
+
 	send.Connect("clicked", func() {
-		model := routers.Model.ToTreeModel()
 		sourceIter, err := sourceSelect.GetActiveIter()
 		if err != nil {
 			log.Print(err)
 			return
 		}
 
-		sourceID, err := gtk_utils.ModelGetValue[int](model, sourceIter, router.ROUTER_ID)
+		source, err := routers.GetRouter(sourceIter)
 		if err != nil {
 			log.Print(err)
 			return
@@ -185,21 +346,20 @@ func buildWindow(win *gtk.Window) {
 			return
 		}
 
-		destID, err := gtk_utils.ModelGetValue[int](model, destIter, router.ROUTER_ID)
+		dest, err := routers.GetRouter(destIter)
 		if err != nil {
 			log.Print(err)
 			return
 		}
 
-		state.Start(sourceID, destID)
+		state.Start(source.RouterID, dest.RouterID)
 		draw.QueueDraw()
 
 		setSensitive(false, sourceSelect, destSelect)
-		setSensitive(true,
-			prevState, nextHop,
+		setSensitive(true, prevState, nextHopButton,
 			broadcast, broadcastRouterSelect,
-			broadcastRouter, detect,
-			detectRouterSelect, detectRouter,
+			broadcastRouterButton, detectButton,
+			detectRouterSelect, detectRouterButton,
 		)
 	})
 
@@ -209,10 +369,10 @@ func buildWindow(win *gtk.Window) {
 		draw.QueueDraw()
 
 		prevState.SetSensitive(state.IsPrevState())
-		nextHop.SetSensitive(state.IsNextState())
+		nextHopButton.SetSensitive(state.IsNextState())
 	})
 
-	nextHop.Connect("clicked", func() {
+	nextHopButton.Connect("clicked", func() {
 		state.NewState("Next Hop")
 
 		err := state.RoutePacket()
@@ -223,8 +383,6 @@ func buildWindow(win *gtk.Window) {
 		state.UpdateRouterInfo()
 		draw.QueueDraw()
 
-		prevState.SetSensitive(state.IsPrevState())
-		nextHop.SetSensitive(state.IsNextState())
 	})
 
 	broadcast.Connect("clicked", func() {
@@ -239,36 +397,27 @@ func buildWindow(win *gtk.Window) {
 		}
 
 		state.UpdateRouterInfo()
-		prevState.SetSensitive(state.IsPrevState())
 	})
 
-	broadcastRouter.Connect("clicked", func() {
-		model := routers.Model.ToTreeModel()
+	broadcastRouterButton.Connect("clicked", func() {
 		iter, err := broadcastRouterSelect.GetActiveIter()
 		if err != nil {
 			log.Print(err)
 			return
 		}
 
-		routerID, err := gtk_utils.ModelGetValue[int](model, iter, router.ROUTER_ID)
+		r, err := routers.GetRouter(iter)
 		if err != nil {
 			log.Print(err)
 			return
 		}
 
-		routerName, err := gtk_utils.ModelGetValue[string](model, iter, router.ROUTER_NAME)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-
-		state.NewState(fmt.Sprintf("Broadcast Router %s", routerName))
-		state.BroadcastRouter(routerID)
+		state.NewState(fmt.Sprintf("Broadcast Router %s", r.Name))
+		state.BroadcastRouter(r.RouterID)
 		state.UpdateRouterInfo()
-		prevState.SetSensitive(state.IsPrevState())
 	})
 
-	detect.Connect("clicked", func() {
+	detectButton.Connect("clicked", func() {
 		state.NewState("Detect All Routers")
 
 		for id, r := range routers.Routers {
@@ -280,33 +429,24 @@ func buildWindow(win *gtk.Window) {
 		}
 
 		state.UpdateRouterInfo()
-		prevState.SetSensitive(state.IsPrevState())
 	})
 
-	detectRouter.Connect("clicked", func() {
-		model := routers.Model.ToTreeModel()
+	detectRouterButton.Connect("clicked", func() {
 		iter, err := detectRouterSelect.GetActiveIter()
 		if err != nil {
 			log.Print(err)
 			return
 		}
 
-		routerID, err := gtk_utils.ModelGetValue[int](model, iter, router.ROUTER_ID)
+		r, err := routers.GetRouter(iter)
 		if err != nil {
 			log.Print(err)
 			return
 		}
 
-		routerName, err := gtk_utils.ModelGetValue[string](model, iter, router.ROUTER_NAME)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-
-		state.NewState(fmt.Sprintf("Detect Router %s", routerName))
-		state.DetectAdjacent(routerID)
+		state.NewState(fmt.Sprintf("Detect Router %s", r.Name))
+		state.DetectAdjacent(r.RouterID)
 		state.UpdateRouterInfo()
-		prevState.SetSensitive(state.IsPrevState())
 	})
 
 	draw.Connect("draw", func(d *gtk.DrawingArea, cr *cairo.Context) {
@@ -318,10 +458,10 @@ func buildWindow(win *gtk.Window) {
 
 	setSensitive(true, sourceSelect, destSelect)
 	setSensitive(false,
-		prevState, nextHop,
+		prevState, nextHopButton,
 		broadcast, broadcastRouterSelect,
-		broadcastRouter, detect,
-		detectRouterSelect, detectRouter,
+		broadcastRouterButton, detectButton,
+		detectRouterSelect, detectRouterButton,
 	)
 
 	// testing layout
@@ -348,16 +488,6 @@ func buildWindow(win *gtk.Window) {
 
 }
 
-func addRouter(draw *gtk.DrawingArea, name string, ip string) {
-	ls := protocol.NewLinkStateRouter(routers.MaxRouterID)
-	newRouter := router.NewRouter(ls)
-	newRouter.Name = name
-	newRouter.IP = ip
-
-	routers.AddRouter(newRouter)
-	draw.QueueDraw()
-}
-
 type sensitive interface {
 	SetSensitive(bool)
 }
@@ -366,6 +496,16 @@ func setSensitive(val bool, args ...sensitive) {
 	for _, w := range args {
 		w.SetSensitive(val)
 	}
+}
+
+func addRouter(draw *gtk.DrawingArea, name string, ip string) {
+	ls := protocol.NewLinkStateRouter(routers.MaxRouterID)
+	newRouter := router.NewRouter(ls)
+	newRouter.Name = name
+	newRouter.IP = ip
+
+	routers.AddRouter(newRouter)
+	draw.QueueDraw()
 }
 
 func drawLoop(d *gtk.DrawingArea, event *gdk.Event) {
