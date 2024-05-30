@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"routing-gui/gtk_utils"
 	"routing-gui/protocol"
@@ -47,7 +48,7 @@ func buildWindow(win *gtk.Window) {
 		return state.RouterInfo[routerID]
 	})
 	pipes = router.NewPipeTree(routers)
-	state = router.NewRouterState()
+	state = router.NewRouterState(pipes)
 
 	nb, err := gtk_utils.BuilderGetObject[*gtk.Notebook](builder, "nb")
 
@@ -56,6 +57,9 @@ func buildWindow(win *gtk.Window) {
 
 	labelPipes, _ := gtk.LabelNewWithMnemonic("Connections")
 	nb.AppendPage(pipes.Box, labelPipes)
+
+	labelState, _ := gtk.LabelNewWithMnemonic("State")
+	nb.AppendPage(state.StateInfo, labelState)
 
 	left, err := gtk_utils.BuilderGetObject[*gtk.Box](builder, "left")
 	if err != nil {
@@ -187,7 +191,7 @@ func buildWindow(win *gtk.Window) {
 			return
 		}
 
-		state.Start(sourceID, destID, routers)
+		state.Start(sourceID, destID)
 		draw.QueueDraw()
 
 		setSensitive(false, sourceSelect, destSelect)
@@ -200,8 +204,8 @@ func buildWindow(win *gtk.Window) {
 	})
 
 	prevState.Connect("clicked", func() {
-		state.PrevState(routers)
-		state.UpdateRouterInfo(routers)
+		state.PrevState()
+		state.UpdateRouterInfo()
 		draw.QueueDraw()
 
 		prevState.SetSensitive(state.IsPrevState())
@@ -209,14 +213,14 @@ func buildWindow(win *gtk.Window) {
 	})
 
 	nextHop.Connect("clicked", func() {
-		state.NewState()
+		state.NewState("Next Hop")
 
-		err := state.RoutePacket(pipes)
+		err := state.RoutePacket()
 		if err != nil {
 			log.Print(err)
 		}
 
-		state.UpdateRouterInfo(routers)
+		state.UpdateRouterInfo()
 		draw.QueueDraw()
 
 		prevState.SetSensitive(state.IsPrevState())
@@ -224,7 +228,7 @@ func buildWindow(win *gtk.Window) {
 	})
 
 	broadcast.Connect("clicked", func() {
-		state.NewState()
+		state.NewState("Broadcast All Routers")
 
 		for id, r := range routers.Routers {
 			if r == nil {
@@ -234,13 +238,11 @@ func buildWindow(win *gtk.Window) {
 			state.BroadcastRouter(id)
 		}
 
-		state.UpdateRouterInfo(routers)
+		state.UpdateRouterInfo()
 		prevState.SetSensitive(state.IsPrevState())
 	})
 
 	broadcastRouter.Connect("clicked", func() {
-		state.NewState()
-
 		model := routers.Model.ToTreeModel()
 		iter, err := broadcastRouterSelect.GetActiveIter()
 		if err != nil {
@@ -254,29 +256,34 @@ func buildWindow(win *gtk.Window) {
 			return
 		}
 
+		routerName, err := gtk_utils.ModelGetValue[string](model, iter, router.ROUTER_NAME)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		state.NewState(fmt.Sprintf("Broadcast Router %s", routerName))
 		state.BroadcastRouter(routerID)
-		state.UpdateRouterInfo(routers)
+		state.UpdateRouterInfo()
 		prevState.SetSensitive(state.IsPrevState())
 	})
 
 	detect.Connect("clicked", func() {
-		state.NewState()
+		state.NewState("Detect All Routers")
 
 		for id, r := range routers.Routers {
 			if r == nil {
 				continue
 			}
 
-			state.DetectAdjacent(id, pipes)
+			state.DetectAdjacent(id)
 		}
 
-		state.UpdateRouterInfo(routers)
+		state.UpdateRouterInfo()
 		prevState.SetSensitive(state.IsPrevState())
 	})
 
 	detectRouter.Connect("clicked", func() {
-		state.NewState()
-
 		model := routers.Model.ToTreeModel()
 		iter, err := detectRouterSelect.GetActiveIter()
 		if err != nil {
@@ -290,8 +297,15 @@ func buildWindow(win *gtk.Window) {
 			return
 		}
 
-		state.DetectAdjacent(routerID, pipes)
-		state.UpdateRouterInfo(routers)
+		routerName, err := gtk_utils.ModelGetValue[string](model, iter, router.ROUTER_NAME)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		state.NewState(fmt.Sprintf("Detect Router %s", routerName))
+		state.DetectAdjacent(routerID)
+		state.UpdateRouterInfo()
 		prevState.SetSensitive(state.IsPrevState())
 	})
 

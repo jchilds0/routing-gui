@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"routing-gui/gtk_utils"
-	"slices"
+	"strconv"
 
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
@@ -113,58 +113,134 @@ const (
 	INFO_DIST
 )
 
+const (
+	STATE_ID = iota
+	STATE_DESC
+)
+
 type RouterState struct {
+	rTree      *RouterTree
+	pTree      *PipeTree
 	state      []*State
+	stateIter  []*gtk.TreeIter
 	current    int
 	destID     int
 	RouterInfo map[int]*gtk.TreeModelSort
+	StateInfo  *gtk.TreeView
+	infoModel  *gtk.TreeStore
 }
 
-func NewRouterState() *RouterState {
-	rs := &RouterState{}
+func NewRouterState(pTree *PipeTree) *RouterState {
+	rs := &RouterState{
+		rTree: pTree.Routers,
+		pTree: pTree,
+	}
 
 	rs.state = make([]*State, 0, 30)
+	rs.stateIter = make([]*gtk.TreeIter, 0, 30)
 	rs.RouterInfo = make(map[int]*gtk.TreeModelSort, 30)
+
+	{
+		rs.StateInfo, _ = gtk.TreeViewNew()
+		rs.infoModel, _ = gtk.TreeStoreNew(
+			glib.TYPE_INT,
+			glib.TYPE_STRING,
+		)
+
+		rs.StateInfo.SetModel(rs.infoModel)
+
+		cell, _ := gtk.CellRendererTextNew()
+		col, _ := gtk.TreeViewColumnNewWithAttribute("State Description", cell, "text", STATE_DESC)
+		rs.StateInfo.AppendColumn(col)
+
+		rs.StateInfo.Connect("row-activated",
+			func(tree *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
+				iter, err := rs.infoModel.GetIter(path)
+				if err != nil {
+					log.Printf("Error selecting state: %s", err)
+					return
+				}
+
+				model := rs.infoModel.ToTreeModel()
+				id, err := gtk_utils.ModelGetValue[int](model, iter, STATE_ID)
+				if err != nil {
+					log.Printf("Error selecting state: %s", err)
+					return
+				}
+
+				rs.current = id
+				rs.loadState()
+			})
+	}
 	return rs
 }
 
-func (rs *RouterState) Start(source, dest int, rTree *RouterTree) {
+func (rs *RouterState) Start(source, dest int) {
 	rs.destID = dest
 
-	s := NewStateFromTree(rTree)
+	s := NewStateFromTree(rs.rTree)
 	s.selected[source] = true
 	s.currentRouter = source
 
 	rs.state = append(rs.state, s)
 
+	model := rs.rTree.Model.ToTreeModel()
+	sourceName, err := gtk_utils.ModelGetValue[string](model, rs.rTree.RouterIter[source], ROUTER_NAME)
+	if err != nil {
+		log.Print(err)
+		sourceName = strconv.Itoa(source)
+	}
+
+	destName, err := gtk_utils.ModelGetValue[string](model, rs.rTree.RouterIter[dest], ROUTER_NAME)
+	if err != nil {
+		log.Print(err)
+		destName = strconv.Itoa(dest)
+	}
+
+	iter := rs.infoModel.Append(nil)
+	rs.stateIter = append(rs.stateIter, iter)
+	rs.infoModel.SetValue(iter, STATE_ID, rs.current)
+
+	desc := fmt.Sprintf("Send Message Router %s to %s", sourceName, destName)
+	rs.infoModel.SetValue(iter, STATE_DESC, desc)
+
 	if logState {
 		log.Printf("Sending packet from %d to %d", source, dest)
 	}
 
-	rs.loadState(0, rTree)
+	rs.loadState()
 }
 
-func (rs *RouterState) PrevState(rTree *RouterTree) {
+func (rs *RouterState) PrevState() {
 	if rs.current == 0 {
 		return
 	}
 
-	rs.state = slices.Delete(rs.state, rs.current, rs.current+1)
-	rs.current--
+	currentIter := rs.stateIter[rs.current]
 
-	rs.loadState(rs.current, rTree)
+	var prevIter gtk.TreeIter
+	rs.infoModel.IterParent(&prevIter, currentIter)
+
+	prevID, err := gtk_utils.ModelGetValue[int](rs.infoModel.ToTreeModel(), &prevIter, STATE_ID)
+	if err != nil {
+		log.Printf("Error getting prev state: %s", err)
+		return
+	}
+
+	rs.current = prevID
+	rs.loadState()
 }
 
-func (rs *RouterState) DetectAdjacent(routerID int, pTree *PipeTree) {
+func (rs *RouterState) DetectAdjacent(routerID int) {
 	s := rs.state[rs.current]
 	if s == nil {
 		return
 	}
 
-	s.DetectAdjacent(pTree, routerID)
+	s.DetectAdjacent(rs.pTree, routerID)
 }
 
-func (rs *RouterState) RoutePacket(pTree *PipeTree) error {
+func (rs *RouterState) RoutePacket() error {
 	s := rs.state[rs.current]
 	if s == nil {
 		return fmt.Errorf("Current State %d does not exist", rs.current)
@@ -186,32 +262,42 @@ func (rs *RouterState) RoutePacket(pTree *PipeTree) error {
 
 	s.selected[nextHop] = true
 	s.currentRouter = nextHop
-	rs.loadState(rs.current, pTree.Routers)
+	rs.loadState()
 
 	return nil
 }
 
-func (rs *RouterState) NewState() {
+func (rs *RouterState) NewState(desc string) {
 	s := rs.state[rs.current]
+	iter := rs.stateIter[rs.current]
 	state := NewStateFromState(s)
 
 	rs.current = len(rs.state)
 	rs.state = append(rs.state, state)
+
+	newIter := rs.infoModel.Append(iter)
+	rs.stateIter = append(rs.stateIter, newIter)
+
+	path, _ := rs.infoModel.GetPath(iter)
+	rs.StateInfo.ExpandRow(path, false)
+
+	rs.infoModel.SetValue(rs.stateIter[rs.current], STATE_ID, rs.current)
+	rs.infoModel.SetValue(rs.stateIter[rs.current], STATE_DESC, desc)
 }
 
-func (rs *RouterState) loadState(stateID int, rTree *RouterTree) {
-	if stateID < 0 || stateID >= len(rs.state) {
-		log.Printf("State %d out of range", stateID)
+func (rs *RouterState) loadState() {
+	if rs.current < 0 || rs.current >= len(rs.state) {
+		log.Printf("State %d out of range", rs.current)
 		return
 	}
 
-	s := rs.state[stateID]
+	s := rs.state[rs.current]
 	if s == nil {
-		log.Printf("State %d does not exist", stateID)
+		log.Printf("State %d does not exist", rs.current)
 		return
 	}
 
-	for id, r := range rTree.Routers {
+	for id, r := range rs.rTree.Routers {
 		if r == nil {
 			continue
 		}
@@ -235,7 +321,7 @@ func (rs *RouterState) IsNextState() bool {
 	return s.currentRouter != rs.destID
 }
 
-func (rs *RouterState) UpdateRouterInfo(rTree *RouterTree) {
+func (rs *RouterState) UpdateRouterInfo() {
 	s := rs.state[rs.current]
 
 	for r1, r := range s.routers {
@@ -253,7 +339,7 @@ func (rs *RouterState) UpdateRouterInfo(rTree *RouterTree) {
 		info := r.Info()
 
 		for _, p := range info {
-			err := rs.addInfo(model, p, rTree)
+			err := rs.addInfo(model, p)
 			if err != nil {
 				log.Printf("Error adding info for router %d: %s", r1, err)
 				continue
@@ -262,9 +348,9 @@ func (rs *RouterState) UpdateRouterInfo(rTree *RouterTree) {
 	}
 }
 
-func (rs *RouterState) addInfo(routerModel *gtk.ListStore, p Path, rTree *RouterTree) (err error) {
-	model := rTree.Model.ToTreeModel()
-	iter := rTree.RouterIter[p.DestID]
+func (rs *RouterState) addInfo(routerModel *gtk.ListStore, p Path) (err error) {
+	model := rs.rTree.Model.ToTreeModel()
+	iter := rs.rTree.RouterIter[p.DestID]
 
 	destName, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
 	if err != nil {
@@ -278,7 +364,7 @@ func (rs *RouterState) addInfo(routerModel *gtk.ListStore, p Path, rTree *Router
 		return
 	}
 
-	iter = rTree.RouterIter[p.NextHopID]
+	iter = rs.rTree.RouterIter[p.NextHopID]
 	nextName := "-"
 	nextIP := "-"
 	if iter != nil {
