@@ -123,6 +123,17 @@ func buildWindow(win *gtk.Window) {
 	pipeList.SetModel(pipes.Model)
 	pipes.AddColumns(pipeList)
 
+	/* State */
+	stateTree, err := gtk_utils.BuilderGetObject[*gtk.TreeView](builder, "state-list")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cell, _ = gtk.CellRendererTextNew()
+	col, _ := gtk.TreeViewColumnNewWithAttribute("State Description", cell, "text", router.STATE_DESC)
+	stateTree.AppendColumn(col)
+	stateTree.SetModel(state.Model)
+
 	/* Prepare Message */
 
 	sourceSelect, err := gtk_utils.BuilderGetObject[*gtk.ComboBox](builder, "source-select")
@@ -324,6 +335,26 @@ func buildWindow(win *gtk.Window) {
 			}
 		}
 	})
+
+	/* State */
+
+	stateTree.Connect("row-activated",
+		func(tree *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
+			iter, err := state.Model.GetIter(path)
+			if err != nil {
+				log.Printf("Error selecting state: %s", err)
+				return
+			}
+
+			model := state.Model.ToTreeModel()
+			id, err := gtk_utils.ModelGetValue[int](model, iter, router.STATE_ID)
+			if err != nil {
+				log.Printf("Error selecting state: %s", err)
+				return
+			}
+
+			state.LoadState(id)
+		})
 
 	/* Message */
 

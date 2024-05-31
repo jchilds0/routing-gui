@@ -127,8 +127,7 @@
 
             <!-- State -->
             <child>
-              <object class="GtkButton">
-                <property name="label">Add Router</property>
+              <object class="GtkTreeView" id="state-list">
               </object>
             </child>
 
