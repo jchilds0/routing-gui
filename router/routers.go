@@ -21,25 +21,22 @@ type RouterTree struct {
 	RouterIter  map[int]*gtk.TreeIter
 	MaxRouterID int
 	Model       *gtk.ListStore
-	RouterInfo  *gtk.Box
-	routerList  *gtk.TreeView
-	routerLabel *gtk.HeaderBar
+
+	ActiveRouterID   int
+	routerInfoList   *gtk.TreeView
+	routerInfoHeader *gtk.HeaderBar
 }
 
-func NewRouterTree() *RouterTree {
-	rTree := &RouterTree{MaxRouterID: 1}
+func NewRouterTree(header *gtk.HeaderBar, tree *gtk.TreeView) *RouterTree {
+	rTree := &RouterTree{
+		MaxRouterID:      1,
+		routerInfoHeader: header,
+		routerInfoList:   tree,
+	}
 	rTree.Routers = make(map[int]*RouterIcon, 100)
 	rTree.RouterIter = make(map[int]*gtk.TreeIter, 100)
 
 	rTree.Model, _ = gtk.ListStoreNew(glib.TYPE_INT, glib.TYPE_STRING, glib.TYPE_STRING)
-
-	rTree.RouterInfo, _ = gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
-
-	rTree.routerLabel, _ = gtk.HeaderBarNew()
-	rTree.RouterInfo.PackStart(rTree.routerLabel, false, false, 0)
-
-	rTree.routerList, _ = gtk.TreeViewNew()
-	rTree.RouterInfo.PackStart(rTree.routerList, false, false, 0)
 
 	cols := []string{"Destination Name", "Destination IP", "Next Hop Name", "Next Hop IP", "Distance"}
 	cols_index := []int{INFO_DEST_NAME, INFO_DEST_IP, INFO_NEXT_NAME, INFO_NEXT_IP, INFO_DIST}
@@ -47,13 +44,13 @@ func NewRouterTree() *RouterTree {
 
 	for i := range cols {
 		col, _ := gtk.TreeViewColumnNewWithAttribute(cols[i], stateCol, "text", cols_index[i])
-		rTree.routerList.AppendColumn(col)
+		rTree.routerInfoList.AppendColumn(col)
 	}
 
 	return rTree
 }
 
-func (rTree *RouterTree) AddColumns(tree *gtk.TreeView, getRouterList func(int) gtk.ITreeModel) {
+func (rTree *RouterTree) AddColumns(tree *gtk.TreeView, getRouterList func(int) *gtk.TreeModel) {
 	name, _ := gtk.CellRendererTextNew()
 	name.SetProperty("editable", true)
 	name.Connect("edited",
@@ -129,9 +126,18 @@ func (rTree *RouterTree) AddColumns(tree *gtk.TreeView, getRouterList func(int) 
 			}
 
 			routerList := getRouterList(routerID)
-			rTree.routerList.SetModel(routerList)
-			rTree.routerLabel.SetTitle(fmt.Sprintf("Router %s State", name))
+			if routerList == nil {
+				return
+			}
+
+			rTree.ActiveRouterInfo(name, routerID, routerList)
 		})
+}
+
+func (rTree *RouterTree) ActiveRouterInfo(name string, routerID int, info *gtk.TreeModel) {
+	rTree.ActiveRouterID = routerID
+	rTree.routerInfoHeader.SetTitle(fmt.Sprintf("Router %s State", name))
+	rTree.routerInfoList.SetModel(info)
 }
 
 func (rTree *RouterTree) AddRouter(r *RouterIcon) {

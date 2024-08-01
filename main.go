@@ -46,7 +46,17 @@ func buildWindow(win *gtk.Window) {
 	box, err := gtk_utils.BuilderGetObject[*gtk.Paned](builder, "body")
 	win.Add(box)
 
-	routers = router.NewRouterTree()
+	stateHeader, err := gtk_utils.BuilderGetObject[*gtk.HeaderBar](builder, "state-title")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stateTree, err := gtk_utils.BuilderGetObject[*gtk.TreeView](builder, "router-state")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	routers = router.NewRouterTree(stateHeader, stateTree)
 	pipes = router.NewPipeTree(routers)
 	state = router.NewRouterState(pipes)
 
@@ -79,8 +89,17 @@ func buildWindow(win *gtk.Window) {
 
 	routerList.SetModel(routers.Model)
 	routerList.SetActivateOnSingleClick(true)
-	routers.AddColumns(routerList, func(routerID int) gtk.ITreeModel {
-		return state.RouterInfo[routerID]
+	routers.AddColumns(routerList, func(routerID int) *gtk.TreeModel {
+		if state == nil {
+			return nil
+		}
+
+		tree := state.RouterInfo[routerID]
+		if tree == nil {
+			return nil
+		}
+
+		return tree.ToTreeModel()
 	})
 
 	/* Connections */
@@ -124,18 +143,17 @@ func buildWindow(win *gtk.Window) {
 	pipes.AddColumns(pipeList)
 
 	/* State */
-	stateTree, err := gtk_utils.BuilderGetObject[*gtk.TreeView](builder, "state-list")
+	stateList, err := gtk_utils.BuilderGetObject[*gtk.TreeView](builder, "state-list")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	cell, _ = gtk.CellRendererTextNew()
 	col, _ := gtk.TreeViewColumnNewWithAttribute("State Description", cell, "text", router.STATE_DESC)
-	stateTree.AppendColumn(col)
-	stateTree.SetModel(state.Model)
+	stateList.AppendColumn(col)
+	stateList.SetModel(state.Model)
 
 	/* Prepare Message */
-
 	sourceSelect, err := gtk_utils.BuilderGetObject[*gtk.ComboBox](builder, "source-select")
 	if err != nil {
 		log.Fatal(err)
@@ -337,8 +355,7 @@ func buildWindow(win *gtk.Window) {
 	})
 
 	/* State */
-
-	stateTree.Connect("row-activated",
+	stateList.Connect("row-activated",
 		func(tree *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
 			iter, err := state.Model.GetIter(path)
 			if err != nil {
@@ -392,6 +409,8 @@ func buildWindow(win *gtk.Window) {
 			broadcastRouterButton, detectButton,
 			detectRouterSelect, detectRouterButton,
 		)
+
+		state.UpdateRouterInfo()
 	})
 
 	prevState.Connect("clicked", func() {
@@ -486,6 +505,7 @@ func buildWindow(win *gtk.Window) {
 	})
 
 	draw.Connect("motion-notify-event", drawLoop)
+	draw.Connect("button-press-event", pressLoop)
 
 	setSensitive(true, sourceSelect, destSelect)
 	setSensitive(false,
@@ -572,12 +592,28 @@ func drawLoop(d *gtk.DrawingArea, event *gdk.Event) {
 func pressLoop(d *gtk.DrawingArea, event *gdk.Event) {
 	b := gdk.EventButtonNewFromEvent(event)
 
+	if routers == nil {
+		return
+	}
+
+	if state == nil {
+		return
+	}
+
 	for _, r := range routers.Routers {
 		if r == nil {
 			continue
 		}
 
-		r.Selected = r.Contains(b.X(), b.Y()) && !r.Selected
+		if !r.Contains(b.X(), b.Y()) {
+			continue
+		}
+
+		if state.RouterInfo[r.RouterID] == nil {
+			continue
+		}
+
+		routers.ActiveRouterInfo(r.Name, r.RouterID, state.RouterInfo[r.RouterID].ToTreeModel())
 	}
 
 	d.QueueDraw()

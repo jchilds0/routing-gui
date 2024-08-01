@@ -176,44 +176,61 @@ func (pTree *PipeTree) Draw(cr *cairo.Context) {
 		y2 := r2.Y + r2.H/2
 
 		unitX, unitY := unitVector(x2-x1, y2-y1)
-
-		radius := float64(75)
-
-		startX := x1 + radius*unitX
-		startY := y1 + radius*unitY
-		endX := x2 - radius*unitX
-		endY := y2 - radius*unitY
+		routerRadius := float64(75)
+		weightRadius := float64(20)
 		lineWidth := float64(8)
 
+		centerX := (x1 + x2) / 2
+		centerY := (y1 + y2) / 2
+
+		l1StartX, l1StartY := x1+routerRadius*unitX, y1+routerRadius*unitY
+		l1EndX, l1EndY := centerX-weightRadius*unitX, centerY-weightRadius*unitY
+		l2StartX, l2StartY := centerX+weightRadius*unitX, centerY+weightRadius*unitY
+		l2EndX, l2EndY := x2-routerRadius*unitX, y2-routerRadius*unitY
+
+		// first line segment
 		cr.SetSourceRGB(0, 0, 0)
-		cr.MoveTo(startX, startY)
-		cr.LineTo(endX, endY)
+		cr.MoveTo(l1StartX, l1StartY)
+		cr.LineTo(l1EndX, l1EndY)
 		cr.SetLineWidth(lineWidth)
 		cr.Stroke()
 
-		cr.Arc(startX, startY, lineWidth/2, 0, 2*math.Pi)
-		cr.Arc(endX, endY, lineWidth/2, 0, 2*math.Pi)
+		cr.Arc(l1StartX, l1StartY, lineWidth/2, 0, 2*math.Pi)
+		cr.Arc(l1EndX, l1EndY, lineWidth/2, 0, 2*math.Pi)
 		cr.Fill()
 
 		cr.SetSourceRGB(0.5, 0.5, 0.5)
-		cr.MoveTo(startX, startY)
-		cr.LineTo(endX, endY)
+		cr.MoveTo(l1StartX, l1StartY)
+		cr.LineTo(l1EndX, l1EndY)
 		cr.SetLineWidth(lineWidth / 4)
 		cr.Stroke()
 		cr.Fill()
 
+		// second line segment
+		cr.SetSourceRGB(0, 0, 0)
+		cr.MoveTo(l2StartX, l2StartY)
+		cr.LineTo(l2EndX, l2EndY)
+		cr.SetLineWidth(lineWidth)
+		cr.Stroke()
+
+		cr.Arc(l2StartX, l2StartY, lineWidth/2, 0, 2*math.Pi)
+		cr.Arc(l2EndX, l2EndY, lineWidth/2, 0, 2*math.Pi)
+		cr.Fill()
+
+		cr.SetSourceRGB(0.5, 0.5, 0.5)
+		cr.MoveTo(l2StartX, l2StartY)
+		cr.LineTo(l2EndX, l2EndY)
+		cr.SetLineWidth(lineWidth / 4)
+		cr.Stroke()
+		cr.Fill()
+
+		// pipe weight
 		cr.SetSourceRGB(0, 0, 0)
 		cr.SelectFontFace("Georgia", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-		cr.SetFontSize(16)
-
-		centerX := (endX + startX) / 2
-		centerY := (endY + startY) / 2
-
-		normalX, normalY := normalVector(unitX, unitY)
-		dist := float64(20)
+		cr.SetFontSize(20)
 
 		w := strconv.Itoa(pTree.Weight[conn])
-		cr.MoveTo(centerX+normalX*dist, centerY+normalY*dist)
+		cr.MoveTo(centerX-5, centerY+8)
 		cr.ShowText(w)
 	}
 }

@@ -292,7 +292,7 @@ func (rs *RouterState) IsNextState() bool {
 func (rs *RouterState) UpdateRouterInfo() {
 	s := rs.state[rs.currentID]
 
-	for r1, r := range s.routers {
+	for routerID, r := range s.routers {
 		model, _ := gtk.ListStoreNew(
 			glib.TYPE_STRING,
 			glib.TYPE_STRING,
@@ -301,19 +301,21 @@ func (rs *RouterState) UpdateRouterInfo() {
 			glib.TYPE_INT,
 		)
 
-		rs.RouterInfo[r1], _ = gtk.TreeModelSortNew(model)
-		rs.RouterInfo[r1].SetSortColumnId(INFO_DEST_NAME, gtk.SORT_ASCENDING)
+		rs.RouterInfo[routerID], _ = gtk.TreeModelSortNew(model)
+		rs.RouterInfo[routerID].SetSortColumnId(INFO_DEST_NAME, gtk.SORT_ASCENDING)
 
 		info := r.Info()
 
 		for _, p := range info {
 			err := rs.addInfo(model, p)
 			if err != nil {
-				log.Printf("Error adding info for router %d: %s", r1, err)
+				log.Printf("Error adding info for router %d: %s", routerID, err)
 				continue
 			}
 		}
 	}
+
+	rs.rTree.routerInfoList.SetModel(rs.RouterInfo[rs.rTree.ActiveRouterID])
 }
 
 func (rs *RouterState) addInfo(routerModel *gtk.ListStore, p Path) (err error) {
