@@ -23,11 +23,12 @@ type RouterTree struct {
 	Model       *gtk.ListStore
 
 	ActiveRouterID   int
+	getRouterInfo    func(int) *gtk.TreeModel
 	routerInfoList   *gtk.TreeView
 	routerInfoHeader *gtk.HeaderBar
 }
 
-func NewRouterTree(header *gtk.HeaderBar, tree *gtk.TreeView) *RouterTree {
+func NewRouterTree(header *gtk.HeaderBar, tree *gtk.TreeView, getRouterInfo func(int) *gtk.TreeModel) *RouterTree {
 	rTree := &RouterTree{
 		MaxRouterID:      1,
 		routerInfoHeader: header,
@@ -50,94 +51,100 @@ func NewRouterTree(header *gtk.HeaderBar, tree *gtk.TreeView) *RouterTree {
 	return rTree
 }
 
-func (rTree *RouterTree) AddColumns(tree *gtk.TreeView, getRouterList func(int) *gtk.TreeModel) {
+func (rTree *RouterTree) SetupTreeColumns(routerList *gtk.TreeView) {
+	routerList.SetModel(rTree.Model)
+	routerList.SetActivateOnSingleClick(true)
+
 	name, _ := gtk.CellRendererTextNew()
 	name.SetProperty("editable", true)
-	name.Connect("edited",
-		func(cell *gtk.CellRendererText, path, text string) {
-			iter, err := rTree.Model.GetIterFromString(path)
-			if err != nil {
-				log.Printf("Error editing name: %s", err)
-				return
-			}
-
-			id, err := gtk_utils.ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
-			if err != nil {
-				log.Printf("Error getting id: %s", err)
-				return
-			}
-
-			r := rTree.Routers[id]
-			if r != nil {
-				r.Name = text
-			}
-
-			rTree.Model.SetValue(iter, ROUTER_NAME, text)
-		})
+	name.Connect("edited", rTree.UpdateName)
 
 	col, _ := gtk.TreeViewColumnNewWithAttribute("Name", name, "text", ROUTER_NAME)
-	tree.AppendColumn(col)
+	routerList.AppendColumn(col)
 
 	ip, _ := gtk.CellRendererTextNew()
 	ip.SetProperty("editable", true)
-	ip.Connect("edited",
-		func(cell *gtk.CellRendererText, path, text string) {
-			iter, err := rTree.Model.GetIterFromString(path)
-			if err != nil {
-				log.Printf("Error editing name: %s", err)
-				return
-			}
+	ip.Connect("edited", rTree.UpdateIP)
 
-			id, err := gtk_utils.ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
-			if err != nil {
-				log.Printf("Error getting id: %s", err)
-				return
-			}
-
-			r := rTree.Routers[id]
-			if r != nil {
-				r.IP = text
-			}
-
-			rTree.Model.SetValue(iter, ROUTER_IP, text)
-		})
 	col, _ = gtk.TreeViewColumnNewWithAttribute("IP Address", ip, "text", ROUTER_IP)
-	tree.AppendColumn(col)
-
-	tree.Connect("row-activated",
-		func(tree *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
-			iter, err := rTree.Model.GetIter(path)
-			if err != nil {
-				log.Print(err)
-				return
-			}
-
-			model := rTree.Model.ToTreeModel()
-			routerID, err := gtk_utils.ModelGetValue[int](model, iter, ROUTER_ID)
-			if err != nil {
-				log.Print(err)
-				return
-			}
-
-			name, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
-			if err != nil {
-				log.Print(err)
-				return
-			}
-
-			routerList := getRouterList(routerID)
-			if routerList == nil {
-				return
-			}
-
-			rTree.ActiveRouterInfo(name, routerID, routerList)
-		})
+	routerList.AppendColumn(col)
+	routerList.Connect("row-activated", rTree.SelectRouter)
 }
 
-func (rTree *RouterTree) ActiveRouterInfo(name string, routerID int, info *gtk.TreeModel) {
+func (rTree *RouterTree) UpdateName(cell *gtk.CellRendererText, path, text string) {
+	iter, err := rTree.Model.GetIterFromString(path)
+	if err != nil {
+		log.Printf("Error editing name: %s", err)
+		return
+	}
+
+	id, err := gtk_utils.ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
+	if err != nil {
+		log.Printf("Error getting id: %s", err)
+		return
+	}
+
+	r := rTree.Routers[id]
+	if r != nil {
+		r.Name = text
+	}
+
+	rTree.Model.SetValue(iter, ROUTER_NAME, text)
+}
+
+func (rTree *RouterTree) UpdateIP(cell *gtk.CellRendererText, path, text string) {
+	iter, err := rTree.Model.GetIterFromString(path)
+	if err != nil {
+		log.Printf("Error editing name: %s", err)
+		return
+	}
+
+	id, err := gtk_utils.ModelGetValue[int](rTree.Model.ToTreeModel(), iter, ROUTER_ID)
+	if err != nil {
+		log.Printf("Error getting id: %s", err)
+		return
+	}
+
+	r := rTree.Routers[id]
+	if r != nil {
+		r.IP = text
+	}
+
+	rTree.Model.SetValue(iter, ROUTER_IP, text)
+}
+
+func (rTree *RouterTree) SelectRouter(tree *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
+	iter, err := rTree.Model.GetIter(path)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	model := rTree.Model.ToTreeModel()
+	routerID, err := gtk_utils.ModelGetValue[int](model, iter, ROUTER_ID)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	name, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	routerList := rTree.getRouterInfo(routerID)
+	if routerList == nil {
+		return
+	}
+
+	rTree.SetRouterState(routerID, name, routerList)
+}
+
+func (rTree *RouterTree) SetRouterState(routerID int, name string, model *gtk.TreeModel) {
 	rTree.ActiveRouterID = routerID
 	rTree.routerInfoHeader.SetTitle(fmt.Sprintf("Router %s State", name))
-	rTree.routerInfoList.SetModel(info)
+	rTree.routerInfoList.SetModel(model)
 }
 
 func (rTree *RouterTree) AddRouter(r *RouterIcon) {
@@ -175,6 +182,16 @@ func (rTree *RouterTree) GetRouter(iter *gtk.TreeIter) (r *RouterIcon, err error
 	}
 
 	return
+}
+
+func (rTree *RouterTree) GetRouterIcon(name string) *RouterIcon {
+	for _, r := range rTree.Routers {
+		if r.Name == name {
+			return r
+		}
+	}
+
+	return nil
 }
 
 func (rTree *RouterTree) Draw(cr *cairo.Context) {

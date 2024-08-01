@@ -1,18 +1,26 @@
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
 	"log"
+	"os"
 	"routing-gui/gtk_utils"
 	"routing-gui/protocol"
 	"routing-gui/router"
+	"strconv"
+	"strings"
 
 	"github.com/gotk3/gotk3/cairo"
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 )
 
+var layout = flag.String("f", "", "load network from csv file")
+
 func main() {
+	flag.Parse()
 	gtk.Init(nil)
 
 	win, _ := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
@@ -56,7 +64,18 @@ func buildWindow(win *gtk.Window) {
 		log.Fatal(err)
 	}
 
-	routers = router.NewRouterTree(stateHeader, stateTree)
+	routers = router.NewRouterTree(stateHeader, stateTree, func(routerID int) *gtk.TreeModel {
+		if state == nil {
+			return nil
+		}
+
+		tree := state.RouterInfo[routerID]
+		if tree == nil {
+			return nil
+		}
+
+		return tree.ToTreeModel()
+	})
 	pipes = router.NewPipeTree(routers)
 	state = router.NewRouterState(pipes)
 
@@ -87,20 +106,7 @@ func buildWindow(win *gtk.Window) {
 		log.Fatal(err)
 	}
 
-	routerList.SetModel(routers.Model)
-	routerList.SetActivateOnSingleClick(true)
-	routers.AddColumns(routerList, func(routerID int) *gtk.TreeModel {
-		if state == nil {
-			return nil
-		}
-
-		tree := state.RouterInfo[routerID]
-		if tree == nil {
-			return nil
-		}
-
-		return tree.ToTreeModel()
-	})
+	routers.SetupTreeColumns(routerList)
 
 	/* Connections */
 
@@ -241,7 +247,9 @@ func buildWindow(win *gtk.Window) {
 
 	/* Routers */
 	addRouterButton.Connect("clicked", func() {
-		addRouter(draw, "Router", "127.0.0.1")
+		newRouter("Router", "127.0.0.1")
+
+		draw.QueueDraw()
 	})
 
 	removeRouterButton.Connect("clicked", func() {
@@ -515,28 +523,12 @@ func buildWindow(win *gtk.Window) {
 		detectRouterSelect, detectRouterButton,
 	)
 
-	// testing layout
-	addRouter(draw, "A", "127.0.0.1")
-	addRouter(draw, "B", "127.0.0.1")
-	addRouter(draw, "C", "127.0.0.1")
-	addRouter(draw, "D", "127.0.0.1")
-	addRouter(draw, "E", "127.0.0.1")
-	addRouter(draw, "F", "127.0.0.1")
-	addRouter(draw, "G", "127.0.0.1")
-	addRouter(draw, "H", "127.0.0.1")
+	// load layout
+	if *layout != "" {
+		loadLayout(*layout)
 
-	pipes.AddConnection(1, 2, 2) // A -- B
-	pipes.AddConnection(2, 3, 7) // B -- C
-	pipes.AddConnection(3, 4, 3) // C -- D
-	pipes.AddConnection(2, 5, 2) // B -- E
-	pipes.AddConnection(1, 7, 6) // A -- G
-	pipes.AddConnection(7, 5, 1) // G -- E
-	pipes.AddConnection(5, 6, 2) // E -- F
-	pipes.AddConnection(6, 8, 2) // F -- H
-	pipes.AddConnection(7, 8, 4) // G -- H
-	pipes.AddConnection(6, 3, 3) // F -- C
-	pipes.AddConnection(8, 4, 2) // H -- D
-
+		draw.QueueDraw()
+	}
 }
 
 type sensitive interface {
@@ -549,14 +541,75 @@ func setSensitive(val bool, args ...sensitive) {
 	}
 }
 
-func addRouter(draw *gtk.DrawingArea, name string, ip string) {
-	ls := protocol.NewLinkStateRouter(routers.MaxRouterID)
-	newRouter := router.NewRouter(ls)
-	newRouter.Name = name
-	newRouter.IP = ip
+func newRouter(name, ip string) *router.RouterIcon {
+	if routers == nil {
+		log.Fatal("Routers not initialised")
+	}
 
-	routers.AddRouter(newRouter)
-	draw.QueueDraw()
+	r := protocol.NewLinkStateRouter(routers.MaxRouterID)
+
+	rIcon := router.NewRouter(r)
+	rIcon.Name = name
+	rIcon.IP = ip
+	routers.AddRouter(rIcon)
+
+	return rIcon
+}
+
+func loadLayout(fileName string) {
+	file, err := os.Open(fileName)
+	if err != nil {
+		log.Printf("Error opening layout file: %s", err)
+		return
+	}
+
+	if routers == nil {
+		log.Fatal("Routers not initialised")
+	}
+
+	if pipes == nil {
+		log.Fatal("Pipes not initialised")
+	}
+
+	i := 1
+	s := bufio.NewScanner(file)
+	for s.Scan() {
+		line := s.Text()
+		words := strings.Split(line, ",")
+
+		switch len(words) {
+		case 2:
+			newRouter(words[0], words[1])
+		case 3:
+			r1Name := strings.TrimSpace(words[0])
+			r1 := routers.GetRouterIcon(r1Name)
+			if r1 == nil {
+				log.Printf("Line %d: %s", i, line)
+				log.Printf("Error: router name %s does not exist", r1Name)
+				continue
+			}
+
+			r2Name := strings.TrimSpace(words[1])
+			r2 := routers.GetRouterIcon(r2Name)
+			if r2 == nil {
+				log.Printf("Line %d: %s", i, line)
+				log.Printf("Error: router name %s does not exist", r2Name)
+				continue
+			}
+
+			str := strings.TrimSpace(words[2])
+			weight, err := strconv.Atoi(str)
+			if err != nil {
+				log.Printf("Line %d: %s", i, line)
+				log.Printf("Error converting weight: %s", err)
+				continue
+			}
+
+			pipes.AddConnection(r1.RouterID, r2.RouterID, weight)
+		}
+
+		i++
+	}
 }
 
 func drawLoop(d *gtk.DrawingArea, event *gdk.Event) {
@@ -613,7 +666,7 @@ func pressLoop(d *gtk.DrawingArea, event *gdk.Event) {
 			continue
 		}
 
-		routers.ActiveRouterInfo(r.Name, r.RouterID, state.RouterInfo[r.RouterID].ToTreeModel())
+		routers.SetRouterState(r.RouterID, r.Name, state.RouterInfo[r.RouterID].ToTreeModel())
 	}
 
 	d.QueueDraw()

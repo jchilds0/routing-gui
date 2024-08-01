@@ -97,6 +97,7 @@ func (s *State) Broadcast(id1 int) {
 		if router2 == nil {
 			return
 		}
+
 		if id1 == id2 {
 			continue
 		}
