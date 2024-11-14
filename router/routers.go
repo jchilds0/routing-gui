@@ -17,38 +17,23 @@ const (
 )
 
 type RouterTree struct {
-	Routers     map[int]*RouterIcon
-	RouterIter  map[int]*gtk.TreeIter
-	MaxRouterID int
-	Model       *gtk.ListStore
-
-	ActiveRouterID   int
-	getRouterInfo    func(int) *gtk.TreeModel
-	routerInfoList   *gtk.TreeView
-	routerInfoHeader *gtk.HeaderBar
+	Routers      map[int]*RouterIcon
+	RouterIter   map[int]*gtk.TreeIter
+	MaxRouterID  int
+	Model        *gtk.ListStore
+	SelectRouter func(routerID int)
 }
 
-func NewRouterTree(header *gtk.HeaderBar, tree *gtk.TreeView, getRouterInfo func(int) *gtk.TreeModel) *RouterTree {
-	rTree := &RouterTree{
-		MaxRouterID:      1,
-		routerInfoHeader: header,
-		routerInfoList:   tree,
+func NewRouterTree(selectRouter func(int)) (rTree *RouterTree, err error) {
+	rTree = &RouterTree{
+		MaxRouterID:  1,
+		SelectRouter: selectRouter,
 	}
 	rTree.Routers = make(map[int]*RouterIcon, 100)
 	rTree.RouterIter = make(map[int]*gtk.TreeIter, 100)
 
-	rTree.Model, _ = gtk.ListStoreNew(glib.TYPE_INT, glib.TYPE_STRING, glib.TYPE_STRING)
-
-	cols := []string{"Destination Name", "Destination IP", "Next Hop Name", "Next Hop IP", "Distance"}
-	cols_index := []int{INFO_DEST_NAME, INFO_DEST_IP, INFO_NEXT_NAME, INFO_NEXT_IP, INFO_DIST}
-	stateCol, _ := gtk.CellRendererTextNew()
-
-	for i := range cols {
-		col, _ := gtk.TreeViewColumnNewWithAttribute(cols[i], stateCol, "text", cols_index[i])
-		rTree.routerInfoList.AppendColumn(col)
-	}
-
-	return rTree
+	rTree.Model, err = gtk.ListStoreNew(glib.TYPE_INT, glib.TYPE_STRING, glib.TYPE_STRING)
+	return
 }
 
 func (rTree *RouterTree) SetupTreeColumns(routerList *gtk.TreeView) {
@@ -68,7 +53,7 @@ func (rTree *RouterTree) SetupTreeColumns(routerList *gtk.TreeView) {
 
 	col, _ = gtk.TreeViewColumnNewWithAttribute("IP Address", ip, "text", ROUTER_IP)
 	routerList.AppendColumn(col)
-	routerList.Connect("row-activated", rTree.SelectRouter)
+	routerList.Connect("row-activated", rTree.selectRouter)
 }
 
 func (rTree *RouterTree) UpdateName(cell *gtk.CellRendererText, path, text string) {
@@ -113,7 +98,7 @@ func (rTree *RouterTree) UpdateIP(cell *gtk.CellRendererText, path, text string)
 	rTree.Model.SetValue(iter, ROUTER_IP, text)
 }
 
-func (rTree *RouterTree) SelectRouter(tree *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
+func (rTree *RouterTree) selectRouter(tree *gtk.TreeView, path *gtk.TreePath, column *gtk.TreeViewColumn) {
 	iter, err := rTree.Model.GetIter(path)
 	if err != nil {
 		log.Print(err)
@@ -127,24 +112,7 @@ func (rTree *RouterTree) SelectRouter(tree *gtk.TreeView, path *gtk.TreePath, co
 		return
 	}
 
-	name, err := gtk_utils.ModelGetValue[string](model, iter, ROUTER_NAME)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-
-	routerList := rTree.getRouterInfo(routerID)
-	if routerList == nil {
-		return
-	}
-
-	rTree.SetRouterState(routerID, name, routerList)
-}
-
-func (rTree *RouterTree) SetRouterState(routerID int, name string, model *gtk.TreeModel) {
-	rTree.ActiveRouterID = routerID
-	rTree.routerInfoHeader.SetTitle(fmt.Sprintf("Router %s State", name))
-	rTree.routerInfoList.SetModel(model)
+	rTree.SelectRouter(routerID)
 }
 
 func (rTree *RouterTree) AddRouter(r *RouterIcon) {

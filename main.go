@@ -64,18 +64,30 @@ func buildWindow(win *gtk.Window) {
 		log.Fatal(err)
 	}
 
-	routers = router.NewRouterTree(stateHeader, stateTree, func(routerID int) *gtk.TreeModel {
+	err = setRouterInfoColumns(stateTree)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	routers, err = router.NewRouterTree(func(routerID int) {
 		if state == nil {
-			return nil
+			return
 		}
 
 		tree := state.RouterInfo[routerID]
 		if tree == nil {
-			return nil
+			return
 		}
 
-		return tree.ToTreeModel()
+		stateTree.SetModel(tree.ToTreeModel())
+
+		r := routers.Routers[routerID]
+		stateHeader.SetTitle(fmt.Sprintf("Router %s State", r.Name))
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	pipes = router.NewPipeTree(routers)
 	state = router.NewRouterState(pipes)
 
@@ -575,6 +587,14 @@ func loadLayout(fileName string) {
 	s := bufio.NewScanner(file)
 	for s.Scan() {
 		line := s.Text()
+		if len(line) == 0 {
+			continue
+		}
+
+		if line[0] == '#' {
+			continue
+		}
+
 		words := strings.Split(line, ",")
 
 		switch len(words) {
@@ -666,8 +686,35 @@ func pressLoop(d *gtk.DrawingArea, event *gdk.Event) {
 			continue
 		}
 
-		routers.SetRouterState(r.RouterID, r.Name, state.RouterInfo[r.RouterID].ToTreeModel())
+		routers.SelectRouter(r.RouterID)
 	}
 
 	d.QueueDraw()
+}
+
+func setRouterInfoColumns(routerInfoList *gtk.TreeView) error {
+	cols := []string{"Destination Name", "Destination IP", "Next Hop Name", "Next Hop IP", "Distance"}
+	cols_index := []int{
+		router.INFO_DEST_NAME,
+		router.INFO_DEST_IP,
+		router.INFO_NEXT_NAME,
+		router.INFO_NEXT_IP,
+		router.INFO_DIST,
+	}
+
+	stateCol, err := gtk.CellRendererTextNew()
+	if err != nil {
+		return err
+	}
+
+	for i := range cols {
+		col, err := gtk.TreeViewColumnNewWithAttribute(cols[i], stateCol, "text", cols_index[i])
+		if err != nil {
+			return err
+		}
+
+		routerInfoList.AppendColumn(col)
+	}
+
+	return nil
 }

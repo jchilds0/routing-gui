@@ -315,8 +315,6 @@ func (rs *RouterState) UpdateRouterInfo() {
 			}
 		}
 	}
-
-	rs.rTree.routerInfoList.SetModel(rs.RouterInfo[rs.rTree.ActiveRouterID])
 }
 
 func (rs *RouterState) addInfo(routerModel *gtk.ListStore, p Path) (err error) {

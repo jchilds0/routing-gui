@@ -7,7 +7,8 @@ Built using Golang and [Gotk][gotk] for ui elements.
 
 ![Example](data/example.png)
 
-- Network layouts can be created by either adding routers and connections in the application, or loading the layout from a csv. The layout is specified as a csv consisting of rows `<router name>, <ip address>` for routers and `<router 1 name>, <router 2 name>, <connection weight>` for network connections. This layout can be loaded at startup using
+- Network layouts can be created by either adding routers and connections in the application, or loading the layout from file (see `examples/layout.txt` for an example of the format). 
+This layout can be loaded at startup using
 
 ``` go run main.go -f <filename> ```
 
